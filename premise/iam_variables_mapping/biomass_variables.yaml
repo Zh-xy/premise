@@ -17,7 +17,9 @@ biomass wood - purpose grown:
     message: Primary Energy|Biomass|Fuelwood
   ecoinvent_aliases:
     name:
+      - market for wood chips
     reference product:
+      - wood chips
 biomass - residual:
   iam_aliases:
     message: Primary Energy|Biomass|Residues

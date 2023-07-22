@@ -36,9 +36,11 @@ from .transformation import (
     ws,
 )
 from .utils import DATA_DIR, eidb_label, get_efficiency_solar_photovoltaics
+from .activity_maps import act_fltr
 
 LOSS_PER_COUNTRY = DATA_DIR / "electricity" / "losses_per_country.csv"
 IAM_BIOMASS_VARS = VARIABLES_DIR / "biomass_variables.yaml"
+POWERPLANT_TECHS = VARIABLES_DIR / "electricity_variables.yaml"
 
 LOG_CONFIG = DATA_DIR / "utils" / "logging" / "logconfig.yaml"
 # directory for log files
@@ -53,6 +55,19 @@ with open(LOG_CONFIG, "r") as f:
     logging.config.dictConfig(config)
 
 logger = logging.getLogger("electricity")
+
+
+def load_electricity_variables() -> dict:
+    """
+    Load the electricity variables from a YAML file.
+    :return: a dictionary with the electricity variables
+    :rtype: dict
+    """
+
+    with open(POWERPLANT_TECHS, "r", encoding="utf-8") as stream:
+        techs = yaml.full_load(stream)
+
+    return techs
 
 
 def get_losses_per_country_dict() -> Dict[str, Dict[str, float]]:
@@ -1925,6 +1940,27 @@ class Electricity(BaseTransformation):
                                     )
 
                     # self.write_log(dataset=dataset, status="updated")
+
+    def create_missing_power_plant_datasets(self) -> None:
+        """
+        Create missing power plant datasets.
+        We use proxy datasets, copy them and rename them.
+        """
+        for tech, vars in load_electricity_variables().items():
+            if not vars.get("exists in database", True):
+                datasets = act_fltr(
+                    self.database,
+                    vars["proxy"]["filter"],
+                    vars["proxy"].get("mask", {}),
+                )
+
+                print(tech, len(datasets))
+
+
+
+
+
+
 
     def update_electricity_markets(self) -> None:
         """

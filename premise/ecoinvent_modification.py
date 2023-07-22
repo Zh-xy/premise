@@ -765,31 +765,32 @@ class NewDatabase:
                     use_absolute_efficiency=self.use_absolute_efficiency,
                 )
 
-                electricity.adjust_coal_power_plant_emissions()
+                electricity.create_missing_power_plant_datasets()
+                #electricity.adjust_coal_power_plant_emissions()
 
                 # datasets in 3.9 have been updated
-                if self.version not in ["3.9", "3.9.1"]:
-                    electricity.update_ng_production_ds()
+                #if self.version not in ["3.9", "3.9.1"]:
+                #    electricity.update_ng_production_ds()
 
-                electricity.update_efficiency_of_solar_pv()
+                #electricity.update_efficiency_of_solar_pv()
 
-                if scenario["iam data"].biomass_markets is not None:
-                    electricity.create_biomass_markets()
+                #if scenario["iam data"].biomass_markets is not None:
+                #    electricity.create_biomass_markets()
 
-                electricity.create_region_specific_power_plants()
+                #electricity.create_region_specific_power_plants()
 
-                if scenario["iam data"].electricity_markets is not None:
-                    electricity.update_electricity_markets()
-                else:
-                    print("No electricity markets found in IAM data. Skipping.")
+                #if scenario["iam data"].electricity_markets is not None:
+                #    electricity.update_electricity_markets()
+                #else:
+                #    print("No electricity markets found in IAM data. Skipping.")
 
-                if scenario["iam data"].electricity_efficiencies is not None:
-                    electricity.update_electricity_efficiency()
-                else:
-                    print("No electricity efficiencies found in IAM data. Skipping.")
+                #if scenario["iam data"].electricity_efficiencies is not None:
+                #    electricity.update_electricity_efficiency()
+                #else:
+                #    print("No electricity efficiencies found in IAM data. Skipping.")
 
-                scenario["database"] = electricity.database
-                self.modified_datasets = electricity.modified_datasets
+                #scenario["database"] = electricity.database
+                #self.modified_datasets = electricity.modified_datasets
 
     def update_dac(self) -> None:
         """
