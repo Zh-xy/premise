@@ -20,6 +20,7 @@ import wurst
 import yaml
 
 from . import VARIABLES_DIR
+from .activity_maps import act_fltr
 from .data_collection import get_delimiter
 from .export import biosphere_flows_dictionary
 from .transformation import (
@@ -36,7 +37,6 @@ from .transformation import (
     ws,
 )
 from .utils import DATA_DIR, eidb_label, get_efficiency_solar_photovoltaics
-from .activity_maps import act_fltr
 
 LOSS_PER_COUNTRY = DATA_DIR / "electricity" / "losses_per_country.csv"
 IAM_BIOMASS_VARS = VARIABLES_DIR / "biomass_variables.yaml"
@@ -1955,12 +1955,6 @@ class Electricity(BaseTransformation):
                 )
 
                 print(tech, len(datasets))
-
-
-
-
-
-
 
     def update_electricity_markets(self) -> None:
         """
