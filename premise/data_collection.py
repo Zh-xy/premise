@@ -661,8 +661,9 @@ class IAMDataCollection:
         # remove any column that is a string
         # and that is not any of "Region", "Variable", "Unit"
         for col in dataframe.columns:
-            if isinstance(col, str) and col not in ["Region", "Variable", "Unit"]:
-                dataframe = dataframe.drop(col, axis=1)
+            if isinstance(col, str):
+                if col.lower() not in ["region", "variable", "unit"]:
+                    dataframe = dataframe.drop(col, axis=1)
 
         dataframe = dataframe.reset_index()
 
@@ -670,11 +671,12 @@ class IAMDataCollection:
         if "index" in dataframe.columns:
             dataframe = dataframe.drop("index", axis=1)
 
-        dataframe = dataframe.loc[dataframe["Variable"].isin(variables)]
+        # convert all column names that are string to lower case
+        dataframe.columns = [x.lower() if isinstance(x, str) else x for x in dataframe.columns]
 
-        dataframe = dataframe.rename(
-            columns={"Region": "region", "Variable": "variables", "Unit": "unit"}
-        )
+        dataframe = dataframe.loc[dataframe["variable"].isin(variables)]
+
+        dataframe = dataframe.rename(columns={"variable": "variables"})
 
         array = (
             dataframe.melt(
