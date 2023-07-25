@@ -3,6 +3,7 @@ gdp:
     message: GDP|PPP
     remind: GDP|PPP
     image: GDP|PPP
+
 population:
   iam_aliases:
     message: Population

@@ -1,6 +1,6 @@
 {
-    "R12_SAS": ["AF", "BD", "BT", "IN", "MV", "NP", "PK", "LK"],
-    "R12_EEU": [
+    "SAS": ["AF", "BD", "BT", "IN", "MV", "NP", "PK", "LK"],
+    "EEU": [
         "AL",
         "BA",
         "BG",
@@ -14,9 +14,12 @@
         "RO",
         "SK",
         "SI",
-        "MK"
+        "MK",
+        "XK",
+        "RS",
+        "ME"
     ],
-    "R12_MEA": [
+    "MEA": [
         "DZ",
         "BH",
         "EG",
@@ -35,9 +38,10 @@
         "SY",
         "TN",
         "AE",
-        "YE"
+        "YE",
+        "SS"
     ],
-    "R12_PAS": [
+    "PAS": [
         "AS",
         "BN",
         "FJ",
@@ -58,7 +62,7 @@
         "VU",
         "WS"
     ],
-    "R12_WEU": [
+    "WEU": [
         "AD",
         "AT",
         "BE",
@@ -88,7 +92,7 @@
         "TR",
         "GB"
     ],
-    "R12_AFR": [
+    "AFR": [
         "AO",
         "BJ",
         "BW",
@@ -136,11 +140,11 @@
         "TZ",
         "TG",
         "UG",
-        "ZR",
+        "CD",
         "ZM",
         "ZW"
     ],
-    "R12_LAM": [
+    "LAM": [
         "AG",
         "AR",
         "BS",
@@ -167,7 +171,6 @@
         "JM",
         "MQ",
         "MX",
-        "ANT",
         "NI",
         "PA",
         "PY",
@@ -178,11 +181,13 @@
         "SR",
         "TT",
         "UY",
-        "VE"
+        "VE",
+        "CW"
     ],
-    "R12_FSU": ["AM", "AZ", "BY", "GE", "KZ", "KG", "MD", "RU", "TJ", "TM", "UA", "UZ"],
-    "R12_PAO": ["AU", "JP", "NZ"],
-    "R12_RCPA": ["KH", "KP", "LA", "MN", "VN"],
-    "R12_NAM": ["CA", "GU", "PR", "US", "VI"],
-    "R12_CHN": ["CN", "HK", "MO"]
+    "FSU": ["AM", "AZ", "BY", "GE", "KZ", "KG", "MD", "RU", "TJ", "TM", "UA", "UZ"],
+    "PAO": ["AU", "JP", "NZ"],
+    "RCPA": ["KH", "KP", "LA", "MN", "VN"],
+    "NAM": ["CA", "GU", "PR", "US", "VI"],
+    "CHN": ["CN", "HK", "MO"],
+    "World": ["GLO", "RoW"]
 }

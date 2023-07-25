@@ -874,6 +874,7 @@ class Electricity(BaseTransformation):
                 ["RER"],
                 ["RoW"],
                 ["CH"],
+                list(self.ecoinvent_to_iam_loc.keys())
             ]
 
             tech_suppliers = defaultdict(list)
@@ -919,7 +920,7 @@ class Electricity(BaseTransformation):
                     if self.system_model == "consequential":
                         continue
                     else:
-                        raise
+                        raise IndexError(f"Couldn't find suppliers for {technology} when looking for {ecoinvent_technologies[technology]}.")
 
             if self.system_model == "consequential":
                 periods = [
@@ -1598,6 +1599,7 @@ class Electricity(BaseTransformation):
             "Coal PC CCS",
             "Coal CHP CCS",
             "Coal IGCC CCS",
+            "Coal SC",
             "Gas CHP CCS",
             "Gas CC CCS",
             "Oil CC CCS",
@@ -1948,13 +1950,29 @@ class Electricity(BaseTransformation):
         """
         for tech, vars in load_electricity_variables().items():
             if not vars.get("exists in database", True):
-                datasets = act_fltr(
-                    self.database,
-                    vars["proxy"]["filter"],
-                    vars["proxy"].get("mask", {}),
+                new_datasets = self.fetch_proxies(
+                    name=vars["proxy"]["name"],
+                    ref_prod=vars["proxy"]["reference product"],
+                    empty_original_activity=False,
                 )
 
-                print(tech, len(datasets))
+                for loc, ds in new_datasets.items():
+                    ds["name"] = vars["proxy"]["new name"]
+                    ds["code"] = str(uuid.uuid4().hex)
+                    for e in ws.production(ds):
+                        e["name"] = vars["proxy"]["new name"]
+                        if "input" in e:
+                            del e["input"]
+
+                self.database.extend(new_datasets.values())
+
+        mapping = InventorySet(self.database)
+        self.powerplant_map = mapping.generate_powerplant_map()
+        # reverse dictionary of self.powerplant_map
+        self.powerplant_map_rev = {}
+        for k, v in self.powerplant_map.items():
+            for pp in list(v):
+                self.powerplant_map_rev[pp] = k
 
     def update_electricity_markets(self) -> None:
         """

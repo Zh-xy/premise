@@ -538,6 +538,7 @@ class BaseTransformation:
         relink=True,
         regions=None,
         delete_original_dataset=False,
+        empty_original_activity=True,
     ) -> Dict[str, dict]:
         """
         Fetch dataset proxies, given a dataset `name` and `reference product`.
@@ -640,13 +641,14 @@ class BaseTransformation:
 
         # empty original datasets
         # and make them link to new regional datasets
-        self.empty_original_datasets(
-            name=ds_name,
-            ref_prod=ds_ref_prod,
-            loc_map=d_iam_to_eco,
-            production_variable=production_variable,
-            regions=regions,
-        )
+        if empty_original_activity is True:
+            self.empty_original_datasets(
+                name=ds_name,
+                ref_prod=ds_ref_prod,
+                loc_map=d_iam_to_eco,
+                production_variable=production_variable,
+                regions=regions,
+            )
 
         if delete_original_dataset:
             # remove the dataset from `self.database`

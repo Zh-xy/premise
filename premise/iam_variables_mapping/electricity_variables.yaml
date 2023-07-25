@@ -245,18 +245,20 @@ Coal PCU: # sub critical steam cycle unfiltered
   eff_aliases:
     message: Efficiency|Electricity|Coal|w/o CCS|4
   ecoinvent_aliases:
-      fltr:
-          - electricity production, hard coal, subcritical
+    fltr:
+      - electricity production, hard coal, subcritical
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for hard coal
   exists in database: False
   proxy:
-    fltr:
-      - electricity production, hard coal
+    name: electricity production, hard coal
+    reference product: electricity, high voltage
     mask:
       name:
         - mine
         - supercritical
     new name: electricity production, hard coal, subcritical
-
 
 Gas OC:
   iam_aliases:
@@ -377,17 +379,17 @@ Gas ST: # ["Note": "Steam cycle sub cricitcal"]
     message: Efficiency|Electricity|Gas|w/o CCS|2
     remind: Tech|Electricity|Gas|Gas Turbine|Efficiency
     image: Efficiency|Electricity|Gas|w/o CCS|1
-    ecoinvent_aliases:
-      fltr:
-        - electricity production, natural gas, subcritical, steam cycle
+  ecoinvent_aliases:
+    fltr:
+      - electricity production, natural gas, subcritical, steam cycle
   ecoinvent_fuel_aliases:
     fltr:
       - market group for natural gas
       - market for natural gas
   exists in database: False
   proxy:
-    fltr:
-      - electricity production, natural gas, conventional power plant
+    name: electricity production, natural gas, conventional power plant
+    reference product: electricity, high voltage
     new name: electricity production, natural gas, subcritical, steam cycle
 
 Geothermal:
@@ -458,12 +460,13 @@ Nuclear_SMR:
 
 Oil ST:
   iam_aliases:
-    message: 
+    message: Secondary Energy|Electricity|Oil|w/o CCS|2
     remind: SE|Electricity|Oil|w/o CC
     image: Secondary Energy|Electricity|Oil|w/o CCS|1
   eff_aliases:
     remind: Tech|Electricity|Oil|DOT|Efficiency
     image: Efficiency|Electricity|Oil|w/o CCS|1
+    message: Efficiency|Electricity|Oil|w/o CCS|2
   ecoinvent_aliases:
     fltr:
       - electricity production, oil
@@ -547,29 +550,6 @@ Oil CHP CCS:
     mask:
       name: burned
 
-Loil ST: # ["Note": "Steam cycle light oil"]
-  iam_aliases:
-    message: Secondary Energy|Electricity|Oil|w/o CCS|2
-  eff_aliases:
-    message: Efficiency|Electricity|Oil|w/o CCS|2
-  ecoinvent_aliases:
-    fltr:
-      - electricity production, light fuel oil, steam cycle
-  ecoinvent_fuel_aliases:
-    fltr:
-      - market for heavy fuel oil
-      - market group for heavy fuel oil
-    mask:
-      name: burned
-  exists in database: False
-  proxy:
-    fltr:
-      - electricity production, oil
-    mask:
-      name: aluminium
-      reference product: heat
-    new name: electricity production, light fuel oil, steam cycle
-
 Foil ST: # ["Note": "Steam cycle fuel oil"]
   iam_aliases:
     message: Secondary Energy|Electricity|Oil|w/o CCS|3
@@ -577,21 +557,13 @@ Foil ST: # ["Note": "Steam cycle fuel oil"]
     message: Efficiency|Electricity|Oil|w/o CCS|3
   ecoinvent_aliases:
     fltr:
-      - electricity production, fuel oil, steam cycle
+      - electricity production, oil
   ecoinvent_fuel_aliases:
     fltr:
       - market for heavy fuel oil
       - market group for heavy fuel oil
     mask:
       name: burned
-  exists in database: False
-  proxy:
-    fltr:
-      - electricity production, oil
-    mask:
-      name: aluminium
-      reference product: heat
-    new name: electricity production, fuel oil, steam cycle
 
 Solar CSP:
   iam_aliases:
@@ -603,17 +575,12 @@ Solar CSP:
       - electricity production, solar thermal parabolic trough, 50 MW
       - electricity production, solar tower power plant, 20 MW
 
-Solar CSP 3x:
+Solar CSP autonomous:
   iam_aliases:
     message: Secondary Energy|Electricity|Solar|CSP|2
   ecoinvent_aliases:
     fltr:
-      - electricity production, solar thermal parabolic trough, 150 MW
-  exists in database: False
-  proxy:
-    fltr:
-      - electricity production, solar thermal parabolic trough, 50 MW
-    new name: electricity production, solar thermal parabolic trough, 150 MW
+      name: electricity production, at 110 MW concentrating solar power plant, with thermal energy storage
 
 Solar PV Centralized:
   iam_aliases:
