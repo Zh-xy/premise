@@ -444,7 +444,7 @@ hydrogen, electrolysis:
     remind: Tech|Hydrogen|Electricity|Efficiency
   ecoinvent_aliases:
     fltr:
-      - hydrogen production, gaseous, 200 bar, from PEM electrolysis, from grid electricity
+      - hydrogen production, gaseous, 30 bar, from PEM electrolysis, from grid electricity
 
 hydrogen, solar:
   lhv: 120

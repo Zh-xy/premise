@@ -553,6 +553,8 @@ class BaseTransformation:
         :param relink: if `relink`, exchanges from the datasets will be relinked to
         the most geographically-appropriate providers from the database. This is computer-intensive.
         :param regions: regions to create proxy datasets for. if None, all regions are considered.
+        :param delete_original_dataset: if True, delete original datasets from the database.
+        :param empty_original_activity: if True, empty original activities from exchanges.
         :return: dictionary with IAM regions as keys, proxy datasets as values.
         """
 
@@ -592,10 +594,10 @@ class BaseTransformation:
                 if "input" in d_act[region]:
                     del d_act[region]["input"]
 
-                if production_variable:
+                if production_variable is not None:
                     # Add `production volume` field
                     if isinstance(production_variable, str):
-                        production_variable = [production_variable]
+                        production_variable = [production_variable, ]
 
                     if all(
                         i in self.iam_data.production_volumes.variables

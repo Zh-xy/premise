@@ -1964,6 +1964,9 @@ class Electricity(BaseTransformation):
                         if "input" in e:
                             del e["input"]
 
+                    ds["comment"] = "This dataset is a proxy dataset for a power plant. " \
+                                    "It is used to create missing power plant datasets."
+
                 self.database.extend(new_datasets.values())
 
         mapping = InventorySet(self.database)
