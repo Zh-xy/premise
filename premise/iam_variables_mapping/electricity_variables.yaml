@@ -84,6 +84,19 @@ Biomass ST:
       - market for wood chips, wet, measured as dry mass
       - market for biomass, used as fuel
 
+Biomass ST CCS:
+  iam_aliases:
+    tiam: Secondary Energy|Electricity|Biomass combustion|w CCS
+  eff_aliases:
+    tiam: Efficiency|Electricity|Biomass combustion|w CCS
+  ecoinvent_aliases:
+    fltr:
+      - electricity production, at wood burning power plant, post, pipeline 200km, storage 1000m
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for wood chips, wet, measured as dry mass
+      - market for biomass, used as fuel
+
 Biomass IGCC CCS:
   iam_aliases:
     message: Secondary Energy|Electricity|Biomass|w/ CCS|1
@@ -172,6 +185,45 @@ Coal PC:
     fltr:
       - market for hard coal
       - market for lignite
+    mask:
+      name:
+        - factory
+        - plant
+        - briquettes
+        - ash
+
+
+Coal CF 50-50:
+  iam_aliases:
+    tiam: Secondary Energy|Electricity|Co-firing coal:biomass 50:50|w/o CCS
+  eff_aliases:
+    tiam: Efficiency|Electricity|Co-firing coal:biomass 50:50|w/o CCS
+  ecoinvent_aliases:
+    fltr:
+      - electricity production, at co-firing wood and coal power plant, 50-50
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for hard coal
+      - market for wood chips, wet, measured as dry mass
+    mask:
+      name:
+        - factory
+        - plant
+        - briquettes
+        - ash
+
+Coal CF 80-20:
+  iam_aliases:
+    tiam: Secondary Energy|Electricity|Co-firing coal:biomass 80:20|w/o CCS
+  eff_aliases:
+    tiam: Efficiency|Electricity|Co-firing coal:biomass 80:20|w/o CCS
+  ecoinvent_aliases:
+    fltr:
+      - electricity production, at co-firing wood and coal power plant, 80-20
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for hard coal
+      - market for wood chips, wet, measured as dry mass
     mask:
       name:
         - factory
@@ -325,6 +377,23 @@ Coal USC: # ultra-super critical steam cycle
     name: electricity production, hard coal, supercritical
     reference product: electricity, high voltage
     new name: electricity production, hard coal, ultra-supercritical
+
+Coal USC CCS: # ultra-super critical steam cycle
+  iam_aliases:
+    tiam: Secondary Energy|Electricity|Ultra-supercritical pulverised coal|w CCS
+  eff_aliases:
+    tiam: Efficiency|Electricity|Ultra-supercritical pulverised coal|w CCS
+  ecoinvent_aliases:
+    fltr:
+      - electricity production, at hard coal-fired power plant, ultra-super critical, oxy, pipeline 200km, storage 1000m
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for hard coal
+  exists in database: False
+  proxy:
+    name: electricity production, at hard coal-fired power plant, oxy, pipeline 200km, storage 1000m
+    reference product: electricity, high voltage
+    new name: electricity production, at hard coal-fired power plant, ultra-super critical, oxy, pipeline 200km, storage 1000m
 
 Coal PCU: # sub critical steam cycle unfiltered
   iam_aliases:

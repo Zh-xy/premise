@@ -13,6 +13,7 @@ SUPPORTED_MODELS:
   - remind
   - image
   - message
+  - tiam
 
 SUPPORTED_PATHWAYS:
   - SSP2-Base

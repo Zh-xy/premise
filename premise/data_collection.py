@@ -6,6 +6,7 @@ and emission values for different sectors, carbon capture rates, etc.
 
 import copy
 import csv
+import os
 from functools import lru_cache
 from io import StringIO
 from itertools import chain
@@ -631,24 +632,39 @@ class IAMDataCollection:
 
         """
 
-        file_ext = self.model + "_" + self.pathway + ".csv"
-        filepath = Path(filedir) / file_ext
+        # find file in directory which name contains both self.model and self.pathway
+        # Walk through the directory
+        filepath = ""
+        for root, dirs, files in os.walk(filedir):
+            for file in files:
+                # Check if both model and pathway are present in the filename
+                if self.model in file and self.pathway in file:
+                    filepath = Path(os.path.join(root, file))
+
+        if filepath == "":
+            raise FileNotFoundError(
+                f"Could not find any file containing both {self.model} and {self.pathway} in {filedir}"
+            )
 
         if key is None:
             # Uses a non-encrypted file
-            try:
+            # if extension is ".csv"
+            if filepath.suffix in [".csv", ".mif"]:
+                print(f"Reading {filepath} as csv file")
                 with open(filepath, "rb") as file:
                     # read the encrypted data
                     encrypted_data = file.read()
-            except FileNotFoundError:
-                file_ext = self.model + "_" + self.pathway + ".mif"
-                filepath = Path(filedir) / file_ext
-                with open(filepath, "rb") as file:
-                    # read the encrypted data
-                    encrypted_data = file.read()
+                    # create a temp csv-like file to pass to pandas.read_csv()
+                    data = StringIO(str(encrypted_data, "latin-1"))
 
-            # create a temp csv-like file to pass to pandas.read_csv()
-            data = StringIO(str(encrypted_data, "latin-1"))
+            elif filepath.suffix in [".xls", ".xlsx"]:
+                print(f"Reading {filepath} as excel file")
+                data = pd.read_excel(filepath, sheet_name=None)
+
+            else:
+                raise ValueError(
+                    f"Extension {filepath.suffix} is not supported. Please use .csv, .mif, .xls or .xlsx."
+                )
 
         else:
             # Uses an encrypted file
@@ -661,11 +677,15 @@ class IAMDataCollection:
             decrypted_data = fernet_obj.decrypt(encrypted_data)
             data = StringIO(str(decrypted_data, "latin-1"))
 
-        dataframe = pd.read_csv(
-            data,
-            sep=get_delimiter(data=copy.copy(data).readline()),
-            encoding="latin-1",
-        )
+
+        if filepath.suffix in [".csv", ".mif"]:
+            dataframe = pd.read_csv(
+                data,
+                sep=get_delimiter(data=copy.copy(data).readline()),
+                encoding="latin-1",
+            )
+        else:
+            dataframe = data
 
         # if a column name can be an integer
         # we convert it to an integer
