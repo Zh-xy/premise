@@ -677,7 +677,6 @@ class IAMDataCollection:
             decrypted_data = fernet_obj.decrypt(encrypted_data)
             data = StringIO(str(decrypted_data, "latin-1"))
 
-
         if filepath.suffix in [".csv", ".mif"]:
             dataframe = pd.read_csv(
                 data,
