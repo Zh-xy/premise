@@ -33,7 +33,7 @@ Biomass CHP (existing):
     tiam: Efficiency|Electricity|Existing biomass|w/o CCS
   ecoinvent_aliases:
     fltr:
-      - heat and power co-generation, wood chips
+      - heat and power co-generation, existing, wood chips
     mask:
       reference product:
         - heat
@@ -44,7 +44,7 @@ Biomass CHP (existing):
       - market for wood chips, wet, measured as dry mass
   exists in database: False
   proxy:
-    name: heat and power co-generation, wood chips
+    name: heat and power co-generation, wood chips, 6667 kW
     reference product: electricity, high voltage
     mask:
       reference product:
@@ -146,6 +146,9 @@ Biomass MSW:
     fltr:
       name: treatment of municipal solid waste, incineration
       reference product: electricity
+  ecoinvent_fuel_aliases:
+    fltr:
+      - market for wood chips, wet, measured as dry mass
 
 
 Biogas CHP:

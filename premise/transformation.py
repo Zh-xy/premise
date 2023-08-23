@@ -6,6 +6,7 @@ on the wurst database.
 """
 
 import logging.config
+import sys
 import uuid
 from collections import defaultdict
 from copy import deepcopy

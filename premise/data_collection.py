@@ -659,13 +659,12 @@ class IAMDataCollection:
 
             elif filepath.suffix in [".xls", ".xlsx"]:
                 print(f"Reading {filepath} as excel file")
-                data = pd.read_excel(filepath, sheet_name=None)
+                data = pd.read_excel(filepath)
 
             else:
                 raise ValueError(
                     f"Extension {filepath.suffix} is not supported. Please use .csv, .mif, .xls or .xlsx."
                 )
-
         else:
             # Uses an encrypted file
             fernet_obj = Fernet(key)
@@ -688,7 +687,7 @@ class IAMDataCollection:
 
         # if a column name can be an integer
         # we convert it to an integer
-        new_cols = {c: int(c) if c.isdigit() else c for c in dataframe.columns}
+        new_cols = {c: int(c) if str(c).isdigit() else c for c in dataframe.columns}
         dataframe = dataframe.rename(columns=new_cols)
 
         # remove any column that is a string
@@ -908,7 +907,7 @@ class IAMDataCollection:
         # and that none of the  CO2 emissions are captured
 
         if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2")
+            x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2", [])
         ):
             cement_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
@@ -923,7 +922,7 @@ class IAMDataCollection:
         cement_rate.coords["variables"] = "cement"
 
         if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2")
+            x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2", [])
         ):
             steel_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
@@ -948,17 +947,61 @@ class IAMDataCollection:
         # as it is sometimes neglected in the
         # IAM files
 
-        if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2")
-        ):
-            rate.loc[dict(region="World", variables="cement")] = 0
-        else:
-            try:
-                rate.loc[dict(region="World", variables="cement")] = (
+        if "World" in rate.region.values.tolist():
+            if not any(
+                x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2", [])
+            ):
+                rate.loc[dict(region="World", variables="cement")] = 0
+            else:
+                try:
+                    rate.loc[dict(region="World", variables="cement")] = (
+                        data.loc[
+                            dict(
+                                region=[r for r in self.regions if r != "World"],
+                                variables=dict_vars["cement - cco2"],
+                            )
+                        ]
+                        .sum(dim=["variables", "region"])
+                        .values
+                        / data.loc[
+                            dict(
+                                region=[r for r in self.regions if r != "World"],
+                                variables=dict_vars["cement - co2"],
+                            )
+                        ]
+                        .sum(dim=["variables", "region"])
+                        .values
+                    )
+                except ZeroDivisionError:
+                    rate.loc[dict(region="World", variables="cement")] = 0
+
+                try:
+                    rate.loc[dict(region="World", variables="steel")] = data.loc[
+                        dict(
+                            region=[r for r in self.regions if r != "World"],
+                            variables=dict_vars["steel - cco2"],
+                        )
+                    ].sum(dim=["variables", "region"]) / data.loc[
+                        dict(
+                            region=[r for r in self.regions if r != "World"],
+                            variables=dict_vars["steel - co2"],
+                        )
+                    ].sum(
+                        dim=["variables", "region"]
+                    )
+                except ZeroDivisionError:
+                    rate.loc[dict(region="World", variables="steel")] = 0
+
+            if not any(
+                x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2", [])
+            ):
+                rate.loc[dict(region="World", variables="steel")] = 0
+            else:
+                rate.loc[dict(region="World", variables="steel")] = (
                     data.loc[
                         dict(
                             region=[r for r in self.regions if r != "World"],
-                            variables=dict_vars["cement - cco2"],
+                            variables=dict_vars["steel - cco2"],
                         )
                     ]
                     .sum(dim=["variables", "region"])
@@ -966,55 +1009,12 @@ class IAMDataCollection:
                     / data.loc[
                         dict(
                             region=[r for r in self.regions if r != "World"],
-                            variables=dict_vars["cement - co2"],
+                            variables=dict_vars["steel - co2"],
                         )
                     ]
                     .sum(dim=["variables", "region"])
                     .values
                 )
-            except ZeroDivisionError:
-                rate.loc[dict(region="World", variables="cement")] = 0
-
-            try:
-                rate.loc[dict(region="World", variables="steel")] = data.loc[
-                    dict(
-                        region=[r for r in self.regions if r != "World"],
-                        variables=dict_vars["steel - cco2"],
-                    )
-                ].sum(dim=["variables", "region"]) / data.loc[
-                    dict(
-                        region=[r for r in self.regions if r != "World"],
-                        variables=dict_vars["steel - co2"],
-                    )
-                ].sum(
-                    dim=["variables", "region"]
-                )
-            except ZeroDivisionError:
-                rate.loc[dict(region="World", variables="steel")] = 0
-
-        if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2")
-        ):
-            rate.loc[dict(region="World", variables="steel")] = 0
-        else:
-            rate.loc[dict(region="World", variables="steel")] = (
-                data.loc[
-                    dict(
-                        region=[r for r in self.regions if r != "World"],
-                        variables=dict_vars["steel - cco2"],
-                    )
-                ]
-                .sum(dim=["variables", "region"])
-                .values
-                / data.loc[
-                    dict(
-                        region=[r for r in self.regions if r != "World"],
-                        variables=dict_vars["steel - co2"],
-                    )
-                ]
-                .sum(dim=["variables", "region"])
-                .values
-            )
 
         # we ensure that the rate can only be between 0 and 1
         rate.values = np.clip(rate, 0, 1)
