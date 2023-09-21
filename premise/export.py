@@ -32,10 +32,10 @@ from .utils import check_database_name
 
 FILEPATH_SIMAPRO_UNITS = DATA_DIR / "utils" / "export" / "simapro_units.yml"
 FILEPATH_SIMAPRO_COMPARTMENTS = (
-    DATA_DIR / "utils" / "export" / "simapro_compartments.yml"
+        DATA_DIR / "utils" / "export" / "simapro_compartments.yml"
 )
 CORRESPONDENCE_BIO_FLOWS = (
-    DATA_DIR / "utils" / "export" / "correspondence_biosphere_flows.yaml"
+        DATA_DIR / "utils" / "export" / "correspondence_biosphere_flows.yaml"
 )
 
 # current working directory
@@ -181,8 +181,8 @@ def check_for_duplicates(database):
         x
         for x in database
         if (x["name"].lower(), x["reference product"].lower(), x["location"])
-        not in seen
-        and not seen.add(
+           not in seen
+           and not seen.add(
             (x["name"].lower(), x["reference product"].lower(), x["location"])
         )
     ]
@@ -550,9 +550,9 @@ def build_datapackage(df, inventories, list_scenarios, ei_version, name):
         {
             "name": s,
             "description": f"Prospective db, "
-            f"based on {s.split(' - ')[0].upper()}, "
-            f"pathway {s.split(' - ')[1].upper()}, "
-            f"for the year {s.split(' - ')[2]}.",
+                           f"based on {s.split(' - ')[0].upper()}, "
+                           f"pathway {s.split(' - ')[1].upper()}, "
+                           f"for the year {s.split(' - ')[2]}.",
         }
         for s in list_scenarios[1:]
     ]
@@ -617,14 +617,14 @@ def generate_scenario_factor_file(origin_db, scenarios, db_name, version):
         dataset
         for dataset in new_db
         if (
-            dataset["name"],
-            dataset.get("reference product"),
-            None,
-            dataset.get("location"),
-            dataset["unit"],
-            "production",
-        )
-        in new_acts_dict
+               dataset["name"],
+               dataset.get("reference product"),
+               None,
+               dataset.get("location"),
+               dataset["unit"],
+               "production",
+           )
+           in new_acts_dict
     ]
 
     return df, extra_acts
@@ -643,7 +643,7 @@ def generate_new_activities(args):
 
 
 def generate_scenario_difference_file(
-    db_name, origin_db, scenarios, version
+        db_name, origin_db, scenarios, version
 ) -> tuple[DataFrame, list[dict], set[Any]]:
     """
     Generate a scenario difference file for a given list of databases
@@ -686,15 +686,15 @@ def generate_scenario_difference_file(
                 b: c
                 for b, c in a.items()
                 if b
-                not in [
-                    "exchanges",
-                    "code",
-                    "name",
-                    "reference product",
-                    "location",
-                    "unit",
-                    "database",
-                ]
+                   not in [
+                       "exchanges",
+                       "code",
+                       "name",
+                       "reference product",
+                       "location",
+                       "unit",
+                       "database",
+                   ]
             }
 
     for i, db in enumerate(list_dbs):
@@ -801,22 +801,22 @@ def generate_scenario_difference_file(
         dataframe_rows.append(row)
 
     columns = [
-        "from activity name",
-        "from reference product",
-        "from location",
-        "from categories",
-        "from database",
-        "from key",
-        "from unit",
-        "to activity name",
-        "to reference product",
-        "to location",
-        "to categories",
-        "to unit",
-        "to database",
-        "to key",
-        "flow type",
-    ] + list_scenarios
+                  "from activity name",
+                  "from reference product",
+                  "from location",
+                  "from categories",
+                  "from database",
+                  "from key",
+                  "from unit",
+                  "to activity name",
+                  "to reference product",
+                  "to location",
+                  "to categories",
+                  "to unit",
+                  "to database",
+                  "to key",
+                  "flow type",
+              ] + list_scenarios
 
     df = pd.DataFrame(dataframe_rows, columns=columns)
 
@@ -835,7 +835,7 @@ def generate_scenario_difference_file(
 
 
 def generate_superstructure_db(
-    origin_db, scenarios, db_name, filepath, version, format="excel"
+        origin_db, scenarios, db_name, filepath, version, format="excel"
 ) -> List[dict]:
     """
     Build a superstructure database from a list of databases
@@ -881,18 +881,19 @@ def generate_superstructure_db(
     after = len(df)
     print(f"Dropped {before - after} duplicate(s).")
 
+    # remove content from "from key" and "to key"
+    df["from key"] = None
+    df["to key"] = None
+
+    # if df is longer than the row limit of Excel,
+    # the export to Excel is not an option
+    if len(df) > 1048576:
+        format = "csv"
+        print("The scenario difference file is too long to be exported to Excel. Exporting to CSV instead.")
+
     if format == "excel":
         filepath_sdf = filepath / f"scenario_diff_{db_name}.xlsx"
-        try:
-            df.to_excel(filepath_sdf, index=False)
-        except ValueError:
-            # from https://stackoverflow.com/questions/66356152/splitting-a-dataframe-into-multiple-sheets
-            GROUP_LENGTH = 1000000  # set nr of rows to slice df
-            with pd.ExcelWriter(filepath_sdf) as writer:
-                for i in range(0, len(df), GROUP_LENGTH):
-                    df[i : i + GROUP_LENGTH].to_excel(
-                        writer, sheet_name=f"Row {i}", index=False, header=True
-                    )
+        df.to_excel(filepath_sdf, index=False)
     elif format == "csv":
         filepath_sdf = filepath / f"scenario_diff_{db_name}.csv"
         df.to_csv(filepath_sdf, index=False, sep=";")
@@ -908,7 +909,7 @@ def generate_superstructure_db(
 
 
 def prepare_db_for_export(
-    scenario, cache, name, version, system_model, modified_datasets
+        scenario, cache, name, version, system_model, modified_datasets
 ):
     base = BaseTransformation(
         database=scenario["database"],
@@ -953,7 +954,7 @@ def prepare_db_for_export(
 
 
 def _prepare_database(
-    scenario, scenario_cache, version, system_model, modified_datasets
+        scenario, scenario_cache, version, system_model, modified_datasets
 ):
     scenario["database"], scenario_cache = prepare_db_for_export(
         scenario,
@@ -988,10 +989,10 @@ class Export:
     """
 
     def __init__(
-        self,
-        scenario: dict = None,
-        filepath: Path = None,
-        version: str = None,
+            self,
+            scenario: dict = None,
+            filepath: Path = None,
+            version: str = None,
     ):
         self.db = scenario["database"]
         self.model = scenario["model"]
@@ -1194,9 +1195,9 @@ class Export:
 
                                 if dict_classifications[key]["category 3"] != "":
                                     category = (
-                                        dict_classifications[key]["category 2"]
-                                        + "\ ".strip()
-                                        + dict_classifications[key]["category 3"]
+                                            dict_classifications[key]["category 2"]
+                                            + "\ ".strip()
+                                            + dict_classifications[key]["category 3"]
                                     )
                                 else:
                                     category = dict_classifications[key]["category 2"]
@@ -1209,19 +1210,19 @@ class Export:
                                     ]["category 1"]
 
                                     if (
-                                        dict_classifications[
-                                            x[1].split(":")[0].strip()
-                                        ]["category 3"]
-                                        != ""
-                                    ):
-                                        category = (
                                             dict_classifications[
                                                 x[1].split(":")[0].strip()
-                                            ]["category 2"]
-                                            + "\ ".strip()
-                                            + dict_classifications[
-                                                x[1].split(":")[0].strip()
                                             ]["category 3"]
+                                            != ""
+                                    ):
+                                        category = (
+                                                dict_classifications[
+                                                    x[1].split(":")[0].strip()
+                                                ]["category 2"]
+                                                + "\ ".strip()
+                                                + dict_classifications[
+                                                    x[1].split(":")[0].strip()
+                                                ]["category 3"]
                                         )
                                     else:
                                         category = dict_classifications[
@@ -1314,7 +1315,7 @@ class Export:
         dict_refs = load_references()
 
         with open(
-            Path(self.filepath) / filename, "w", newline="", encoding="latin1"
+                Path(self.filepath) / filename, "w", newline="", encoding="latin1"
         ) as csvFile:
             writer = csv.writer(csvFile, delimiter=";")
             for item in headers:
@@ -1331,18 +1332,18 @@ class Export:
                     )
                 else:
                     if any(
-                        i in ds["name"]
-                        for i in (
-                            "transport, passenger car",
-                            "transport, heavy",
-                            "transport, medium",
-                        )
+                            i in ds["name"]
+                            for i in (
+                                    "transport, passenger car",
+                                    "transport, heavy",
+                                    "transport, medium",
+                            )
                     ):
                         main_category, category = ("transport", r"Road\Transformation")
 
                     if any(
-                        i in ds["name"]
-                        for i in ("Passenger car", "Heavy duty", "Medium duty")
+                            i in ds["name"]
+                            for i in ("Passenger car", "Heavy duty", "Medium duty")
                     ):
                         main_category, category = ("transport", r"Road\Infrastructure")
 
@@ -1356,14 +1357,14 @@ class Export:
 
                 for item in fields:
                     if (
-                        main_category.lower() == "waste treatment"
-                        and item == "Products"
+                            main_category.lower() == "waste treatment"
+                            and item == "Products"
                     ):
                         continue
 
                     if main_category.lower() != "waste treatment" and item in (
-                        "Waste treatment",
-                        "Waste treatment allocation",
+                            "Waste treatment",
+                            "Waste treatment allocation",
                     ):
                         continue
 
@@ -1409,17 +1410,17 @@ class Export:
                                 writer.writerow([string])
 
                     if item in (
-                        "Cut off rules",
-                        "Capital goods",
-                        "Technology",
-                        "Representativeness",
-                        "Waste treatment allocation",
-                        "Boundary with nature",
-                        "Allocation rules",
-                        "Collection method",
-                        "Verification",
-                        "Time Period",
-                        "Record",
+                            "Cut off rules",
+                            "Capital goods",
+                            "Technology",
+                            "Representativeness",
+                            "Waste treatment allocation",
+                            "Boundary with nature",
+                            "Allocation rules",
+                            "Collection method",
+                            "Verification",
+                            "Time Period",
+                            "Record",
                     ):
                         writer.writerow(["Unspecified"])
                     if item == "Literature references":
@@ -1438,14 +1439,14 @@ class Export:
                         for e in ds["exchanges"]:
                             if e["type"] == "production":
                                 name = (
-                                    e["product"]
-                                    + " {"
-                                    + e.get("location", "GLO")
-                                    + "}"
-                                    + "| "
-                                    + e["name"]
-                                    + " "
-                                    + "| Cut-off, U"
+                                        e["product"]
+                                        + " {"
+                                        + e.get("location", "GLO")
+                                        + "}"
+                                        + "| "
+                                        + e["name"]
+                                        + " "
+                                        + "| Cut-off, U"
                                 )
 
                                 if item == "Waste treatment":
@@ -1484,14 +1485,14 @@ class Export:
 
                                 if exc_cat != "waste treatment":
                                     name = (
-                                        e["product"]
-                                        + " {"
-                                        + e.get("location", "GLO")
-                                        + "}"
-                                        + "| "
-                                        + e["name"]
-                                        + " "
-                                        + "| Cut-off, U"
+                                            e["product"]
+                                            + " {"
+                                            + e.get("location", "GLO")
+                                            + "}"
+                                            + "| "
+                                            + e["name"]
+                                            + " "
+                                            + "| Cut-off, U"
                                     )
 
                                     writer.writerow(
@@ -1508,8 +1509,8 @@ class Export:
                     if item == "Resources":
                         for e in ds["exchanges"]:
                             if (
-                                e["type"] == "biosphere"
-                                and e["categories"][0] == "natural resource"
+                                    e["type"] == "biosphere"
+                                    and e["categories"][0] == "natural resource"
                             ):
                                 writer.writerow(
                                     [
@@ -1552,8 +1553,8 @@ class Export:
                     if item == "Emissions to water":
                         for e in ds["exchanges"]:
                             if (
-                                e["type"] == "biosphere"
-                                and e["categories"][0] == "water"
+                                    e["type"] == "biosphere"
+                                    and e["categories"][0] == "water"
                             ):
                                 if len(e["categories"]) > 1:
                                     sub_compartment = simapro_subs.get(
@@ -1581,8 +1582,8 @@ class Export:
                     if item == "Emissions to soil":
                         for e in ds["exchanges"]:
                             if (
-                                e["type"] == "biosphere"
-                                and e["categories"][0] == "soil"
+                                    e["type"] == "biosphere"
+                                    and e["categories"][0] == "soil"
                             ):
                                 if len(e["categories"]) > 1:
                                     sub_compartment = simapro_subs.get(
@@ -1617,14 +1618,14 @@ class Export:
 
                                 if exc_cat == "waste treatment":
                                     name = (
-                                        e["product"]
-                                        + " {"
-                                        + e.get("location", "GLO")
-                                        + "}"
-                                        + "| "
-                                        + e["name"]
-                                        + " "
-                                        + "| Cut-off, U"
+                                            e["product"]
+                                            + " {"
+                                            + e.get("location", "GLO")
+                                            + "}"
+                                            + "| "
+                                            + e["name"]
+                                            + " "
+                                            + "| Cut-off, U"
                                     )
 
                                     writer.writerow(
