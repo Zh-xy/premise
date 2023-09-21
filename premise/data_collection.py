@@ -907,7 +907,8 @@ class IAMDataCollection:
         # and that none of the  CO2 emissions are captured
 
         if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2", [])
+            x in data.variables.values.tolist()
+            for x in dict_vars.get("cement - cco2", [])
         ):
             cement_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
@@ -922,7 +923,8 @@ class IAMDataCollection:
         cement_rate.coords["variables"] = "cement"
 
         if not any(
-            x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2", [])
+            x in data.variables.values.tolist()
+            for x in dict_vars.get("steel - cco2", [])
         ):
             steel_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
@@ -949,7 +951,8 @@ class IAMDataCollection:
 
         if "World" in rate.region.values.tolist():
             if not any(
-                x in data.variables.values.tolist() for x in dict_vars.get("cement - cco2", [])
+                x in data.variables.values.tolist()
+                for x in dict_vars.get("cement - cco2", [])
             ):
                 rate.loc[dict(region="World", variables="cement")] = 0
             else:
@@ -993,7 +996,8 @@ class IAMDataCollection:
                     rate.loc[dict(region="World", variables="steel")] = 0
 
             if not any(
-                x in data.variables.values.tolist() for x in dict_vars.get("steel - cco2", [])
+                x in data.variables.values.tolist()
+                for x in dict_vars.get("steel - cco2", [])
             ):
                 rate.loc[dict(region="World", variables="steel")] = 0
             else:
