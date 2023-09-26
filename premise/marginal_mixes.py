@@ -161,9 +161,7 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
     weighted_slope_start: float = args.get("weighted slope start", 0.75)
     weighted_slope_end: float = args.get("weighted slope end", 1.0)
 
-    market_shares = xr.zeros_like(
-        data.interp(year=[year]),
-    )
+    market_shares = xr.zeros_like(data.interp(year=[year]),)
 
     # Since there can be different start and end values,
     # we interpolate the entire data of the IAM instead
@@ -196,6 +194,10 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
         shares = data_full.sel(region=region, year=year) / data_full.sel(
             region=region, year=year
         ).sum(dim="variables")
+
+        # if shares contains only NaNs, we give its elements the value 1
+        if shares.isnull().all():
+            shares = xr.ones_like(shares)
 
         time_parameters = {
             (False, False, False, False): {
@@ -328,31 +330,18 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
             # if the capital replacement rate is not used,
             if isinstance(start, np.ndarray):
                 data_start = (
-                    data_full.sel(
-                        region=region,
-                        year=start,
-                    )
+                    data_full.sel(region=region, year=start,)
                     * np.identity(start.shape[0])
                 ).sum(dim="variables")
             else:
-                data_start = data_full.sel(
-                    region=region,
-                    year=start,
-                )
+                data_start = data_full.sel(region=region, year=start,)
 
             if isinstance(end, np.ndarray):
                 data_end = (
-                    data_full.sel(
-                        region=region,
-                        year=end,
-                    )
-                    * np.identity(end.shape[0])
+                    data_full.sel(region=region, year=end,) * np.identity(end.shape[0])
                 ).sum(dim="variables")
             else:
-                data_end = data_full.sel(
-                    region=region,
-                    year=end,
-                )
+                data_end = data_full.sel(region=region, year=end,)
 
             market_shares.loc[dict(region=region)] = (
                 (data_end.values - data_start.values) / (end - start)
@@ -409,28 +398,18 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
         if measurement == 2:
             if isinstance(end, np.ndarray):
                 data_end = (
-                    data_full.sel(
-                        region=region,
-                        year=end,
-                    )
-                    * np.identity(end.shape[0])
+                    data_full.sel(region=region, year=end,) * np.identity(end.shape[0])
                 ).sum(dim="variables")
 
                 new_end = np.zeros_like(data_full.sel(region=region))
                 new_end[:, :] = end[:, None]
                 end = new_end
             else:
-                data_end = data_full.sel(
-                    region=region,
-                    year=end,
-                )
+                data_end = data_full.sel(region=region, year=end,)
 
             if isinstance(start, np.ndarray):
                 data_start = (
-                    data_full.sel(
-                        region=region,
-                        year=start,
-                    )
+                    data_full.sel(region=region, year=start,)
                     * np.identity(start.shape[0])
                 ).sum(dim="variables")
 
@@ -438,10 +417,7 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
                 new_start[:, :] = start[:, None]
                 start = new_start
             else:
-                data_start = data_full.sel(
-                    region=region,
-                    year=start,
-                )
+                data_start = data_full.sel(region=region, year=start,)
 
             mask_end = data_full.sel(region=region).year.values[None, :] <= end
             mask_start = data_full.sel(region=region).year.values[None, :] >= start
@@ -493,33 +469,20 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
         if measurement == 3:
             if isinstance(end, np.ndarray):
                 data_end = (
-                    data_full.sel(
-                        region=region,
-                        year=end,
-                    )
-                    * np.identity(end.shape[0])
+                    data_full.sel(region=region, year=end,) * np.identity(end.shape[0])
                 ).sum(dim="variables")
 
             else:
-                data_end = data_full.sel(
-                    region=region,
-                    year=end,
-                )
+                data_end = data_full.sel(region=region, year=end,)
 
             if isinstance(start, np.ndarray):
                 data_start = (
-                    data_full.sel(
-                        region=region,
-                        year=start,
-                    )
+                    data_full.sel(region=region, year=start,)
                     * np.identity(start.shape[0])
                 ).sum(dim="variables")
 
             else:
-                data_start = data_full.sel(
-                    region=region,
-                    year=start,
-                )
+                data_start = data_full.sel(region=region, year=start,)
 
             slope = (data_end.values - data_start.values) / (end - start)
 
@@ -528,32 +491,24 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
 
             if isinstance(short_slope_start, np.ndarray):
                 data_short_slope_start = (
-                    data_full.sel(
-                        region=region,
-                        year=short_slope_start,
-                    )
+                    data_full.sel(region=region, year=short_slope_start,)
                     * np.identity(short_slope_start.shape[0])
                 ).sum(dim="variables")
 
             else:
                 data_short_slope_start = data_full.sel(
-                    region=region,
-                    year=short_slope_start,
+                    region=region, year=short_slope_start,
                 )
 
             if isinstance(short_slope_end, np.ndarray):
                 data_short_slope_end = (
-                    data_full.sel(
-                        region=region,
-                        year=short_slope_end,
-                    )
+                    data_full.sel(region=region, year=short_slope_end,)
                     * np.identity(short_slope_end.shape[0])
                 ).sum(dim="variables")
 
             else:
                 data_short_slope_end = data_full.sel(
-                    region=region,
-                    year=short_slope_end,
+                    region=region, year=short_slope_end,
                 )
 
             short_slope = (
@@ -651,31 +606,18 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
 
             if isinstance(start, np.ndarray):
                 data_start = (
-                    data_full.sel(
-                        region=region,
-                        year=start,
-                    )
+                    data_full.sel(region=region, year=start,)
                     * np.identity(start.shape[0])
                 ).sum(dim="variables")
             else:
-                data_start = data_full.sel(
-                    region=region,
-                    year=start,
-                )
+                data_start = data_full.sel(region=region, year=start,)
 
             if isinstance(end, np.ndarray):
                 data_end = (
-                    data_full.sel(
-                        region=region,
-                        year=end,
-                    )
-                    * np.identity(end.shape[0])
+                    data_full.sel(region=region, year=end,) * np.identity(end.shape[0])
                 ).sum(dim="variables")
             else:
-                data_end = data_full.sel(
-                    region=region,
-                    year=end,
-                )
+                data_end = data_full.sel(region=region, year=end,)
 
             market_shares.loc[dict(region=region)] = (
                 (data_end.values - data_start.values) / (end - start)

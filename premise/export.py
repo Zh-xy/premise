@@ -310,12 +310,7 @@ def create_codes_and_names_of_tech_matrix(database: List[dict]):
     :rtype: dict
     """
     return {
-        (
-            i["name"],
-            i["reference product"],
-            i["unit"],
-            i["location"],
-        ): i["code"]
+        (i["name"], i["reference product"], i["unit"], i["location"],): i["code"]
         for i in database
     }
 
@@ -337,10 +332,7 @@ def biosphere_flows_dictionary(version):
     csv_dict = {}
 
     with open(fp, encoding="utf-8") as file:
-        input_dict = csv.reader(
-            file,
-            delimiter=get_delimiter(filepath=fp),
-        )
+        input_dict = csv.reader(file, delimiter=get_delimiter(filepath=fp),)
         for row in input_dict:
             csv_dict[(row[0], row[1], row[2], row[3])] = row[-1]
 
@@ -542,9 +534,7 @@ def build_datapackage(df, inventories, list_scenarios, ei_version, name):
             "version": ei_version,
             "type": "source",
         },
-        {
-            "name": "biosphere3",
-        },
+        {"name": "biosphere3",},
     ]
     package.descriptor["scenarios"] = [
         {
@@ -937,7 +927,6 @@ def prepare_db_for_export(
     base.database = check_amount_format(base.database)
 
     # we relink "dead" exchanges
-    # print("- relinking exchanges...")
     base.relink_datasets(
         excludes_datasets=["cobalt industry", "market group for electricity"],
         alt_names=[
@@ -950,9 +939,51 @@ def prepare_db_for_export(
         ],
     )
 
-    # print("Done!")
+    for ds in base.database:
+        if "parameters" in ds:
+            if not isinstance(ds["parameters"], list):
+                if isinstance(ds["parameters"], dict):
+                    ds["parameters"] = [
+                        {"name": k, "amount": v} for k, v in ds["parameters"].items()
+                    ]
+                else:
+                    ds["parameters"] = [ds["parameters"]]
+            else:
+                ds["parameters"] = [
+                    {"name": k, "amount": v}
+                    for o in ds["parameters"]
+                    for k, v in o.items()
+                ]
+
+        for key, value in list(ds.items()):
+            if not value:
+                del ds[key]
+
+        ds["exchanges"] = [clean_up(exc) for exc in ds["exchanges"]]
 
     return base.database, base.cache
+
+
+def clean_up(exc):
+    """Remove keys from ``exc`` that are not in the schema."""
+
+    FORBIDDEN_FIELDS_TECH = [
+        "categories",
+    ]
+
+    FORBIDDEN_FIELDS_BIO = ["location", "product"]
+
+    for field in list(exc.keys()):
+        if exc[field] is None or exc[field] == "None":
+            del exc[field]
+            continue
+
+        if exc["type"] == "biosphere" and field in FORBIDDEN_FIELDS_BIO:
+            del exc[field]
+        if exc["type"] == "technosphere" and field in FORBIDDEN_FIELDS_TECH:
+            del exc[field]
+
+    return exc
 
 
 def _prepare_database(
@@ -991,10 +1022,7 @@ class Export:
     """
 
     def __init__(
-        self,
-        scenario: dict = None,
-        filepath: Path = None,
-        version: str = None,
+        self, scenario: dict = None, filepath: Path = None, version: str = None,
     ):
         self.db = scenario["database"]
         self.model = scenario["model"]
@@ -1103,11 +1131,7 @@ class Export:
 
         # Export A matrix
         with open(self.filepath / "A_matrix.csv", "w", encoding="utf-8") as file:
-            writer = csv.writer(
-                file,
-                delimiter=";",
-                lineterminator="\n",
-            )
+            writer = csv.writer(file, delimiter=";", lineterminator="\n",)
             writer.writerow(["index of activity", "index of product", "value"])
             rows = self.create_A_matrix_coordinates()
             for row in rows:
@@ -1115,11 +1139,7 @@ class Export:
 
         # Export A index
         with open(self.filepath / "A_matrix_index.csv", "w", encoding="utf-8") as file:
-            writer = csv.writer(
-                file,
-                delimiter=";",
-                lineterminator="\n",
-            )
+            writer = csv.writer(file, delimiter=";", lineterminator="\n",)
             index_A = create_index_of_A_matrix(self.db)
             for d in index_A:
                 data = list(d) + [index_A[d]]
@@ -1129,11 +1149,7 @@ class Export:
 
         # Export B matrix
         with open(self.filepath / "B_matrix.csv", "w", encoding="utf-8") as file:
-            writer = csv.writer(
-                file,
-                delimiter=";",
-                lineterminator="\n",
-            )
+            writer = csv.writer(file, delimiter=";", lineterminator="\n",)
             writer.writerow(["index of activity", "index of biosphere flow", "value"])
             rows = self.create_B_matrix_coordinates()
             for row in rows:
@@ -1141,11 +1157,7 @@ class Export:
 
         # Export B index
         with open(self.filepath / "B_matrix_index.csv", "w", encoding="utf-8") as file:
-            writer = csv.writer(
-                file,
-                delimiter=";",
-                lineterminator="\n",
-            )
+            writer = csv.writer(file, delimiter=";", lineterminator="\n",)
             for d in index_B:
                 data = list(d) + [index_B[d]]
                 writer.writerow(data)

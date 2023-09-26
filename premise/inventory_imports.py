@@ -60,10 +60,7 @@ def get_biosphere_code(version) -> dict:
     csv_dict = {}
 
     with open(fp, encoding="utf-8") as file:
-        input_dict = csv.reader(
-            file,
-            delimiter=get_delimiter(filepath=fp),
-        )
+        input_dict = csv.reader(file, delimiter=get_delimiter(filepath=fp),)
         for row in input_dict:
             csv_dict[(row[0], row[1], row[2], row[3])] = row[4]
 
@@ -90,8 +87,7 @@ def generate_migration_maps(origin: str, destination: str) -> Dict[str, list]:
 
     with open(FILEPATH_MIGRATION_MAP, "r", encoding="utf-8") as read_obj:
         csv_reader = csv.reader(
-            read_obj,
-            delimiter=get_delimiter(filepath=FILEPATH_MIGRATION_MAP),
+            read_obj, delimiter=get_delimiter(filepath=FILEPATH_MIGRATION_MAP),
         )
         next(csv_reader)
         for row in csv_reader:
@@ -511,15 +507,7 @@ class BaseInventoryImport:
             return candidate["reference product"]
 
         self.list_unlinked.append(
-            (
-                exc[0],
-                exc[-1],
-                exc[1],
-                None,
-                exc[2],
-                "technosphere",
-                self.path.name,
-            )
+            (exc[0], exc[-1], exc[1], None, exc[2], "technosphere", self.path.name,)
         )
 
         return None
@@ -692,10 +680,8 @@ class DefaultInventory(BaseInventoryImport):
             )
 
         if self.system_model == "consequential":
-            self.import_db.data = (
-                check_for_datasets_compliance_with_consequential_database(
-                    self.import_db.data, self.consequential_blacklist
-                )
+            self.import_db.data = check_for_datasets_compliance_with_consequential_database(
+                self.import_db.data, self.consequential_blacklist
             )
 
         self.import_db.data = remove_categories(self.import_db.data)
@@ -827,16 +813,6 @@ class AdditionalInventory(BaseInventoryImport):
                 "Incorrect filetype for inventories." "Should be either .xlsx or .csv"
             )
 
-    def remove_missing_fields(self):
-        """
-        Remove any field that does not have information.
-        """
-
-        for dataset in self.import_db.data:
-            for key, value in list(dataset.items()):
-                if not value:
-                    del dataset[key]
-
     def prepare_inventory(self):
         if str(self.version_in) != self.version_out:
             # if version_out is 3.9, migrate towards 3.8 first, then 3.9
@@ -855,72 +831,15 @@ class AdditionalInventory(BaseInventoryImport):
             )
 
         if self.system_model == "consequential":
-            self.import_db.data = (
-                check_for_datasets_compliance_with_consequential_database(
-                    self.import_db.data, self.consequential_blacklist
-                )
+            self.import_db.data = check_for_datasets_compliance_with_consequential_database(
+                self.import_db.data, self.consequential_blacklist
             )
-
-        list_missing_prod = self.search_missing_exchanges(
-            label="type", value="production"
-        )
-
-        if len(list_missing_prod) > 0:
-            print("The following datasets are missing a `production` exchange.")
-            print("You should fix those before proceeding further.\n")
-            table = PrettyTable(
-                ["Name", "Reference product", "Location", "Unit", "File"]
-            )
-            for dataset in list_missing_prod:
-                table.add_row(
-                    [
-                        dataset.get("name", "XXXX"),
-                        dataset.get("referece product", "XXXX"),
-                        dataset.get("location", "XXXX"),
-                        dataset.get("unit", "XXXX"),
-                        self.path.name,
-                    ]
-                )
-
-            print(table)
-
-            sys.exit()
 
         self.import_db.data = remove_categories(self.import_db.data)
-        self.add_biosphere_links(delete_missing=True)
-        list_missing_ref = self.search_missing_field(field="name")
-        list_missing_ref.extend(self.search_missing_field(field="reference product"))
-        list_missing_ref.extend(self.search_missing_field(field="location"))
-        list_missing_ref.extend(self.search_missing_field(field="unit"))
-
-        if len(list_missing_ref) > 0:
-            print(
-                "The following datasets are missing an important field "
-                "(`name`, `reference product`, `location` or `unit`).\n"
-            )
-
-            print("You should fix those before proceeding further.\n")
-            table = PrettyTable(
-                ["Name", "Reference product", "Location", "Unit", "File"]
-            )
-            for dataset in list_missing_ref:
-                table.add_row(
-                    [
-                        dataset.get("name", "XXXX"),
-                        dataset.get("referece product", "XXXX"),
-                        dataset.get("location", "XXXX"),
-                        dataset.get("unit", "XXXX"),
-                        self.path.name,
-                    ]
-                )
-
-            print(table)
-
-        if len(list_missing_prod) > 0 or len(list_missing_ref) > 0:
-            sys.exit()
-
-        self.remove_missing_fields()
+        self.lower_case_technosphere_exchanges()
+        self.add_biosphere_links()
         self.add_product_field_to_exchanges()
+
         # Check for duplicates
         self.check_for_already_existing_datasets()
         self.import_db.data = check_for_duplicate_datasets(self.import_db.data)
