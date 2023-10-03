@@ -221,16 +221,10 @@ methane, fossil:
   lhv: 47.5
   co2: 0.058
   biogenic_share: 0
-  ecoinvent_aliases:
-    fltr:
-      - methane, fossil
 methane, biogenic:
   lhv: 47.5
   co2: 0.058
   biogenic_share: 1
-  ecoinvent_aliases:
-    fltr:
-      - methane, biogenic
 methane, synthetic:
   lhv: 47.5
   co2: 0.058

@@ -13,6 +13,7 @@ import copy
 import re
 from collections import defaultdict
 from functools import lru_cache
+from pprint import pprint
 
 import wurst
 import yaml
@@ -255,7 +256,7 @@ class Electricity(BaseTransformation):
             modified_datasets,
             cache,
         )
-        mapping = InventorySet(self.database)
+        mapping = InventorySet(self.database, model=self.model)
         self.powerplant_map = mapping.generate_powerplant_map()
         # reverse dictionary of self.powerplant_map
         self.powerplant_map_rev = {}
@@ -1622,9 +1623,13 @@ class Electricity(BaseTransformation):
             ):
                 exc["name"] = "market for biomass, used as fuel"
                 exc["product"] = "biomass, used as fuel"
-                exc["location"] = self.ecoinvent_to_iam_loc[dataset["location"]]
 
-        mapping = InventorySet(self.database)
+                if dataset["location"] in self.regions:
+                    exc["location"] = dataset["location"]
+                else:
+                    exc["location"] = self.ecoinvent_to_iam_loc[dataset["location"]]
+
+        mapping = InventorySet(self.database, model=self.model)
         self.powerplant_fuels_map = mapping.generate_powerplant_fuels_map()
 
     def create_region_specific_power_plants(self):
@@ -1653,6 +1658,10 @@ class Electricity(BaseTransformation):
             "Gas CHP CCS",
             "Gas CC CCS",
             "Oil CC CCS",
+            "Oil ST",
+            "Oil CC",
+            "Coal CF 80-20",
+            "Coal CF 50-50"
         ]
 
         list_datasets_to_duplicate = [
@@ -1761,7 +1770,7 @@ class Electricity(BaseTransformation):
 
         # print("Adjust efficiency of power plants...")
 
-        mapping = InventorySet(self.database)
+        mapping = InventorySet(self.database, model=self.model)
         self.fuel_map = mapping.generate_fuel_map()
         # reverse the fuel map to get a mapping from ecoinvent to premise
         self.fuel_map_reverse: Dict = {}
@@ -2021,7 +2030,7 @@ class Electricity(BaseTransformation):
 
                 self.database.extend(new_datasets.values())
 
-        mapping = InventorySet(self.database)
+        mapping = InventorySet(self.database, model=self.model)
         self.powerplant_map = mapping.generate_powerplant_map()
         # reverse dictionary of self.powerplant_map
         self.powerplant_map_rev = {}

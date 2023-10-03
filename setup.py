@@ -32,7 +32,7 @@ def package_files(directory):
 
 setup(
     name="premise",
-    version="1.7.0",
+    version="1.7.1",
     python_requires=">=3.9,<3.11",
     packages=packages,
     author="Romain Sacchi <romain.sacchi@psi.ch>, Alois Dirnaichner <dirnaichner@pik-potsdam.de>, Chris Mutel "
@@ -43,7 +43,8 @@ setup(
     install_requires=[
         "numpy",
         "wurst",
-        "bw2io==0.8.7",
+        # bw2io 0.8.7 or 0.8.10
+        "bw2io >=0.8.7, != 0.8.8",
         "pandas",
         "bw2data",
         "xarray",

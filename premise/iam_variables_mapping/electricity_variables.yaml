@@ -184,6 +184,7 @@ Coal PC:
       name:
         - mine
         - supercritical
+        - subcritical
   ecoinvent_fuel_aliases:
     fltr:
       - market for hard coal
