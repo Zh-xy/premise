@@ -120,7 +120,9 @@ class InventorySet:
     These functions return the result of applying :func:`act_fltr` to the filter dictionaries.
     """
 
-    def __init__(self, database: List[dict], version: str = None, model: str = None) -> None:
+    def __init__(
+        self, database: List[dict], version: str = None, model: str = None
+    ) -> None:
         self.database = database
         self.version = version
         self.model = model
@@ -261,7 +263,9 @@ class InventorySet:
             for tech, fltr in filtr.items()
         }
 
-        mapping = {tech: {act["name"] for act in actlst} for tech, actlst in techs.items()}
+        mapping = {
+            tech: {act["name"] for act in actlst} for tech, actlst in techs.items()
+        }
 
         # check if all keys have values
         # if not, print warning
