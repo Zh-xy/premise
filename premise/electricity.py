@@ -1661,7 +1661,7 @@ class Electricity(BaseTransformation):
             "Oil ST",
             "Oil CC",
             "Coal CF 80-20",
-            "Coal CF 50-50"
+            "Coal CF 50-50",
         ]
 
         list_datasets_to_duplicate = [
