@@ -28,7 +28,7 @@ requirements:
     - pycountry
     - cryptography
     - pyYaml
-    - sparse
+    - sparse>=0.14.0
     - schema
     - datapackage
     - requests

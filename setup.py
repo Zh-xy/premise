@@ -53,7 +53,7 @@ setup(
         "cryptography",
         "premise_gwp",
         "pyYaml",
-        "sparse",
+        "sparse>=0.14.0",
         "schema",
         "datapackage",
         "requests",
