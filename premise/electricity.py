@@ -957,9 +957,6 @@ class Electricity(BaseTransformation):
                         for supplier in tech_suppliers[technology]
                     ]
 
-
-
-
                 except IndexError:
                     if self.system_model == "consequential":
                         continue
@@ -967,7 +964,6 @@ class Electricity(BaseTransformation):
                         raise IndexError(
                             f"Couldn't find suppliers for {technology} when looking for {ecoinvent_technologies[technology]}."
                         )
-
 
             if self.system_model == "consequential":
                 periods = [
