@@ -126,7 +126,6 @@ natural gas:
 
     mask:
       name:
-        - import
         - synthetic
         - burned
         - vehicle grade
@@ -139,7 +138,6 @@ natural gas:
         - vented
         - venting
         - liquids
-        - domestic
         - network
 gas, natural, in ground:
   lhv: 45
