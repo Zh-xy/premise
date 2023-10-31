@@ -7,25 +7,18 @@ import sys
 import uuid
 from functools import lru_cache
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import xarray as xr
 import yaml
-from bw2data import databases
-from bw2io.importers.base_lci import LCIImporter
 from country_converter import CountryConverter
 from prettytable import ALL, PrettyTable
-from wurst.linking import (
-    change_db_name,
-    check_duplicate_codes,
-    check_internal_linking,
-    link_internal,
-)
 from wurst.searching import equals, get_many
 
-from . import DATA_DIR, VARIABLES_DIR, __version__
+from . import __version__
 from .data_collection import get_delimiter
+from .filesystem_constants import DATA_DIR, DIR_CACHED_DB, VARIABLES_DIR
 from .geomap import Geomap
 
 FUELS_PROPERTIES = VARIABLES_DIR / "fuels_variables.yaml"
@@ -160,7 +153,7 @@ def get_regions_definition(model: str) -> None:
     print(table)
 
 
-def clear_existing_cache():
+def clear_existing_cache(all_versions: Optional[bool] = False) -> None:
     """Clears the cache folder, except for files which contain __version__ in name.
     Useful when updating `premise`
     or encountering issues with
@@ -168,14 +161,15 @@ def clear_existing_cache():
     """
     [
         f.unlink()
-        for f in Path(DATA_DIR / "cache").glob("*")
-        if f.is_file() and "".join(tuple(map(str, __version__))) not in f.name
+        for f in DIR_CACHED_DB.glob("*")
+        if f.is_file()
+        and (all_versions or "".join(tuple(map(str, __version__))) not in f.name)
     ]
 
 
 # clear the cache folder
-def clear_cache():
-    [f.unlink() for f in Path(DATA_DIR / "cache").glob("*") if f.is_file()]
+def clear_cache() -> None:
+    clear_existing_cache(all_versions=True)
     print("Cache folder cleared!")
 
 
@@ -268,22 +262,6 @@ def hide_messages():
     print("NewDatabase(..., quiet=True)")
 
 
-class PremiseImporter(LCIImporter):
-    def __init__(self, db_name, data):
-        self.db_name = db_name
-        self.data = data
-        for act in self.data:
-            act["database"] = self.db_name
-
-    # we override `write_database`
-    # to allow existing databases
-    # to be overwritten
-    def write_database(self):
-        if self.db_name in databases:
-            print(f"Database {self.db_name} already exists: " "it will be overwritten.")
-        super().write_database()
-
-
 def reset_all_codes(data):
     """
     Re-generate all codes in each dataset of a database
@@ -300,17 +278,6 @@ def reset_all_codes(data):
     return data
 
 
-def write_brightway2_database(data, name, reset_codes=False):
-    # Restore parameters to Brightway2 format
-    # which allows for uncertainty and comments
-    change_db_name(data, name)
-    if reset_codes:
-        reset_all_codes(data)
-    link_internal(data)
-    check_internal_linking(data)
-    PremiseImporter(name, data).write_database()
-
-
 def delete_log():
     """
     Delete log file.
@@ -319,3 +286,19 @@ def delete_log():
     log_path = Path.cwd() / "premise.log"
     if log_path.exists():
         log_path.unlink()
+
+
+def create_scenario_list(scenarios, datapackages=None):
+    list_scenarios = [f"{s['model']} - {s['pathway']} - {s['year']}" for s in scenarios]
+
+    if "external scenarios" in scenarios[0]:
+        external_model_name = "External model"
+        for s, scenario in enumerate(scenarios):
+            for e, ext_scenario in enumerate(scenario["external scenarios"]):
+                if datapackages is not None:
+                    external_model_name = datapackages[e].descriptor.get(
+                        "name", "External model"
+                    )
+                list_scenarios[s] += f" - {external_model_name} - {ext_scenario}"
+
+    return list_scenarios

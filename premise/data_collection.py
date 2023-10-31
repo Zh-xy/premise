@@ -19,7 +19,7 @@ import xarray as xr
 import yaml
 from cryptography.fernet import Fernet
 
-from . import DATA_DIR, VARIABLES_DIR
+from .filesystem_constants import DATA_DIR, IAM_OUTPUT_DIR, VARIABLES_DIR
 from .marginal_mixes import consequential_method
 
 IAM_ELEC_VARS = VARIABLES_DIR / "electricity_variables.yaml"
@@ -30,11 +30,9 @@ IAM_CEMENT_VARS = VARIABLES_DIR / "cement_variables.yaml"
 IAM_STEEL_VARS = VARIABLES_DIR / "steel_variables.yaml"
 IAM_DAC_VARS = VARIABLES_DIR / "direct_air_capture_variables.yaml"
 IAM_OTHER_VARS = VARIABLES_DIR / "other_variables.yaml"
-FILEPATH_FLEET_COMP = (
-    DATA_DIR / "iam_output_files" / "fleet_files" / "fleet_all_vehicles.csv"
-)
+FILEPATH_FLEET_COMP = IAM_OUTPUT_DIR / "fleet_files" / "fleet_all_vehicles.csv"
 FILEPATH_IMAGE_TRUCKS_FLEET_COMP = (
-    DATA_DIR / "iam_output_files" / "fleet_files" / "image_fleet_trucks.csv"
+    IAM_OUTPUT_DIR / "fleet_files" / "image_fleet_trucks.csv"
 )
 VEHICLES_MAP = DATA_DIR / "transport" / "vehicles_map.yaml"
 IAM_CARBON_CAPTURE_VARS = VARIABLES_DIR / "carbon_capture_variables.yaml"
@@ -508,6 +506,7 @@ class IAMDataCollection:
         self.electricity_efficiencies = self.get_iam_efficiencies(
             data=data, efficiency_labels=electricity_eff_vars
         )
+
         self.cement_efficiencies = self.get_iam_efficiencies(
             data=data,
             efficiency_labels=cement_eff_vars,
@@ -713,8 +712,6 @@ class IAMDataCollection:
             x.lower() if isinstance(x, str) else x for x in dataframe.columns
         ]
 
-        # print(dataframe["variable"].unique())
-
         dataframe = dataframe.loc[dataframe["variable"].isin(variables)]
 
         dataframe = dataframe.rename(columns={"variable": "variables"})
@@ -857,7 +854,7 @@ class IAMDataCollection:
                     all(var in data.variables.values for var in energy_labels[k])
                     and v in data.variables.values
                 ):
-                    d = 1 / (
+                    d = (
                         data.loc[:, energy_labels[k], :].sum(dim="variables")
                         / data.loc[:, v, :]
                     )
@@ -872,9 +869,19 @@ class IAMDataCollection:
             return None
 
         if not self.use_absolute_efficiency:
+            # efficiency expressed
             eff_data /= eff_data.sel(year=2020)
+
+            if len(efficiency_labels) == 0 or any(
+                "specific" in x.lower() for x in efficiency_labels.values()
+            ):
+                # we are dealing with specific energy consumption, not efficiencies
+                # we need to convert them to efficiencies
+                eff_data = 1 / eff_data
+
             # fix efficiencies
             eff_data = fix_efficiencies(eff_data, self.min_year)
+
         else:
             # if absolute efficiencies are used, we need to make sure that
             # the efficiency is not greater than 1
@@ -1098,7 +1105,9 @@ class IAMDataCollection:
             resource = dp.get_resource("scenario_data")
             # getting scenario data in binary format
             scenario_data = resource.raw_read()
-            df = pd.read_csv(BytesIO(scenario_data), encoding="latin1")
+            df = pd.read_csv(
+                BytesIO(scenario_data),
+            )
             # set headers from first row
             df.columns = resource.headers
 

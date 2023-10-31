@@ -25,8 +25,9 @@ from wurst import transformations as wt
 
 from .activity_maps import InventorySet
 from .data_collection import IAMDataCollection
+from .filesystem_constants import DATA_DIR
 from .geomap import Geomap
-from .utils import DATA_DIR, get_fuel_properties
+from .utils import get_fuel_properties
 
 LOG_CONFIG = DATA_DIR / "utils" / "logging" / "logconfig.yaml"
 # directory for log files
@@ -50,6 +51,7 @@ def get_suppliers_of_a_region(
     reference_prod: str,
     unit: str,
     exclude: List[str] = None,
+    exact_match: bool = False,
 ) -> filter:
     """
     Return a list of datasets, for which the location, name,
@@ -65,8 +67,16 @@ def get_suppliers_of_a_region(
     :param exclude: list of terms to exclude
     """
 
-    filters = [
-        ws.either(*[ws.equals("name", supplier) for supplier in names]),
+    if exact_match:
+        filters = [
+            ws.either(*[ws.equals("name", supplier) for supplier in names]),
+        ]
+    else:
+        filters = [
+            ws.either(*[ws.contains("name", supplier) for supplier in names]),
+        ]
+
+    filters += [
         ws.either(*[ws.equals("location", loc) for loc in locations]),
         ws.contains("reference product", reference_prod),
         ws.equals("unit", unit),

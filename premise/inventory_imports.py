@@ -5,7 +5,6 @@ and those provided by the user.
 
 import csv
 import itertools
-import sys
 import uuid
 from functools import lru_cache
 from pathlib import Path
@@ -19,9 +18,9 @@ from bw2io import CSVImporter, ExcelImporter, Migration
 from prettytable import PrettyTable
 from wurst import searching as ws
 
-from . import DATA_DIR, INVENTORY_DIR
 from .clean_datasets import remove_categories, remove_uncertainty
 from .data_collection import get_delimiter
+from .filesystem_constants import DATA_DIR, DIR_CACHED_DB, INVENTORY_DIR
 from .geomap import Geomap
 
 FILEPATH_MIGRATION_MAP = INVENTORY_DIR / "migration_map.csv"
@@ -281,7 +280,7 @@ class BaseInventoryImport:
                 )
 
         self.path = Path(path) if isinstance(path, str) else path
-        self.import_db = self.load_inventory(path)
+        self.import_db = self.load_inventory()
 
         # register migration maps
         # as imported inventories link
@@ -297,7 +296,7 @@ class BaseInventoryImport:
                         description=f"Change technosphere names due to change from {combination[0]} to {combination[1]}",
                     )
 
-    def load_inventory(self, path: Union[str, Path]) -> None:
+    def load_inventory(self) -> None:
         """Load an inventory from a specified path.
         Sets the :attr:`import_db` attribute.
         :param str path: Path to the inventory file
@@ -689,8 +688,8 @@ class DefaultInventory(BaseInventoryImport):
             database, version_in, version_out, path, system_model, keep_uncertainty_data
         )
 
-    def load_inventory(self, path: Union[str, Path]) -> bw2io.ExcelImporter:
-        return ExcelImporter(path)
+    def load_inventory(self) -> bw2io.ExcelImporter:
+        return ExcelImporter(self.path)
 
     def prepare_inventory(self) -> None:
         if self.version_in != self.version_out:
@@ -776,8 +775,8 @@ class VariousVehicles(BaseInventoryImport):
         self.has_fleet = has_fleet
         self.geo = Geomap(model=model)
 
-    def load_inventory(self, path):
-        return ExcelImporter(path)
+    def load_inventory(self):
+        return ExcelImporter(self.path)
 
     def prepare_inventory(self):
         # if version_out is 3.9, migrate towards 3.8 first, then 3.9
@@ -817,13 +816,13 @@ class AdditionalInventory(BaseInventoryImport):
     def __init__(self, database, version_in, version_out, path, system_model):
         super().__init__(database, version_in, version_out, path, system_model)
 
-    def load_inventory(self, path):
-        if "http" in path:
+    def load_inventory(self):
+        # check if "http" in path
+        if "http" in str(self.path):
             # online file
             # we need to save it locally first
-            response = requests.get(path)
-            Path(DATA_DIR / "cache").mkdir(parents=True, exist_ok=True)
-            path = str(Path(DATA_DIR / "cache" / "temp.csv"))
+            response = requests.get(self.path)
+            path = DIR_CACHED_DB / "temp.csv"
             with open(path, "w", encoding="utf-8") as f:
                 writer = csv.writer(
                     f,
@@ -835,10 +834,12 @@ class AdditionalInventory(BaseInventoryImport):
                 for line in response.iter_lines():
                     writer.writerow(line.decode("utf-8").split(","))
 
-        if Path(path).suffix == ".xlsx":
-            return ExcelImporter(path)
-        elif Path(path).suffix == ".csv":
-            return CSVImporter(path)
+        if self.path.suffix == ".xlsx":
+            return ExcelImporter(self.path)
+
+        elif self.path.suffix == ".csv":
+            return CSVImporter(self.path)
+
         else:
             raise ValueError(
                 "Incorrect filetype for inventories." "Should be either .xlsx or .csv"
