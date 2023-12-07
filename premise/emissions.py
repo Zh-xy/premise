@@ -38,9 +38,7 @@ def fetch_mapping(filepath: str) -> dict:
     return mapping
 
 
-def _update_emissions(
-    scenario, version, system_model, gains_scenario, modified_datasets
-):
+def _update_emissions(scenario, version, system_model, gains_scenario):
     emissions = Emissions(
         database=scenario["database"],
         year=scenario["year"],
@@ -50,13 +48,12 @@ def _update_emissions(
         version=version,
         system_model=system_model,
         gains_scenario=gains_scenario,
-        modified_datasets=modified_datasets,
     )
 
     emissions.update_emissions_in_database()
     scenario["database"] = emissions.database
 
-    return scenario, modified_datasets
+    return scenario
 
 
 class Emissions(BaseTransformation):
@@ -75,7 +72,6 @@ class Emissions(BaseTransformation):
         version: str,
         system_model: str,
         gains_scenario: str,
-        modified_datasets: dict,
     ):
         super().__init__(
             database,
@@ -85,7 +81,6 @@ class Emissions(BaseTransformation):
             year,
             version,
             system_model,
-            modified_datasets,
         )
 
         self.version = version
@@ -189,11 +184,13 @@ class Emissions(BaseTransformation):
                 model=model,
             )
 
-            if scaling_factor != 1.0:
+            if scaling_factor != 1.0 and scaling_factor > 0.0:
                 if f"{gains_pollutant} scaling factor" not in dataset.get(
                     "log parameters", {}
                 ):
-                    wurst.rescale_exchange(exc, scaling_factor)
+                    wurst.rescale_exchange(
+                        exc, scaling_factor, remove_uncertainty=False
+                    )
 
                     if "log parameters" not in dataset:
                         dataset["log parameters"] = {}
@@ -243,9 +240,13 @@ class Emissions(BaseTransformation):
                 )
             ]
 
-            scaling_factor = np.clip(scaling_factor, 1 if self.year < 2020 else 0, None)
+            scaling_factor = np.clip(
+                scaling_factor,
+                1 if self.year < 2020 else 0,
+                1 if self.year > 2020 else 1e6,
+            )
 
-            if np.isnan(scaling_factor):
+            if np.isnan(scaling_factor) or scaling_factor == 0.0:
                 scaling_factor = 1.0
 
             return float(scaling_factor)

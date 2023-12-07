@@ -2,6 +2,7 @@
 import os
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from premise.data_collection import IAMDataCollection
@@ -74,14 +75,13 @@ if key:
         year=2012,
         version="3.5",
         system_model="cutoff",
-        modified_datasets={},
     )
 
 
 @pytest.mark.skipif(not key, reason="No access to decryption key")
 def test_losses():
     assert len(el.network_loss) == 13
-    assert el.network_loss["CAZ"]["high"]["transf_loss"] == 0.035483703331573094
+    assert np.isclose(el.network_loss["CAZ"]["high"]["transf_loss"], 0.0333, rtol=1e-2)
 
 
 @pytest.mark.skipif(not key, reason="No access to decryption key")

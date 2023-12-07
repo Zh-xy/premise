@@ -55,3 +55,45 @@ message:
   RCPA: tropical
   SAS: tropical
   WEU: temperate
+
+
+gcam:
+  Africa_Northern: temperate
+  Argentina: temperate
+  Australia_NZ: temperate
+  Brazil: tropical
+  Canada: temperate
+  Central America and Caribbean: tropical
+  China: temperate
+  Colombia: tropical
+  EU-15: temperate
+  India: tropical
+  Indonesia: tropical
+  Japan: temperate
+  Mexico: temperate
+  Middle East: temperate
+  Pakistan: temperate
+  Russia: temperate
+  South Africa: temperate
+  South America_Southern: temperate
+  South Korea: temperate
+  Southeast Asia: tropical
+  Taiwan: tropical
+  USA: temperate
+
+tiam:
+  AFR: tropical
+  AUS: tropical
+  CAN: temperate
+  CSA: tropical
+  CHI: temperate
+  EEU: temperate
+  FSU: temperate
+  IND: tropical
+  JPN: temperate
+  MEX: temperate
+  MEA: tropical
+  ODA: tropical
+  SKO: temperate
+  UK: temperate
+  WEU: temperate
