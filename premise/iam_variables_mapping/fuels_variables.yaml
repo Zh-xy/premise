@@ -465,6 +465,30 @@ diesel, synthetic, from grass, with CCS:
     fltr:
       - diesel production, synthetic, Fischer Tropsch process, hydrogen from wood gasification, with CCS, energy allocation
 
+diesel, synthetic, from natural gas:
+  lhv: 43
+  co2: 0.0732
+  biogenic_share: 0
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Natural Gas|FT Diesel|w/o CCS
+  eff_aliases:
+    tiam: Efficiency|Liquids|Natural gas|FT fuel mix (diesel, kerosene, naptha, ELC)|w/o CCS
+  ecoinvent_aliases:
+    fltr:
+      - diesel production, synthetic, Fischer Tropsch process, from natural gas, energy allocation
+
+diesel, synthetic, from natural gas, with CCS:
+  lhv: 43
+  co2: 0.0732
+  biogenic_share: 1
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Natural Gas|FT Diesel|w CCS
+  eff_aliases:
+    tiam: Efficiency|Liquids|Natural gas|FT fuel mix (diesel, kerosene, naptha, ELC)|w CCS
+  ecoinvent_aliases:
+    fltr:
+      - diesel production, synthetic, Fischer Tropsch process, from natural gas, with CCS, energy allocation
+
 heat, from hydrogen:
   lhv: 1
 hydrogen, from petroleum:
@@ -966,15 +990,47 @@ liquefied petroleum gas:
   iam_aliases:
     tiam: Secondary Energy|Liquids|Oil|LPG
 
-liquefied petroleum gas, natural:
+liquefied petroleum gas, synthetic, from natural gas:
   lhv: 45.5
   co2: 0.0631
   biogenic_share: 0
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Natural Gas|FT LPG|w/o CCS
 
-liquefied petroleum gas, synthetic:
+liquefied petroleum gas, synthetic, from natural gas, with CCS:
+  lhv: 45.5
+  co2: 0.0631
+  biogenic_share: 0
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Natural Gas|FT LPG|w CCS
+
+liquefied petroleum gas, synthetic, from biomass:
   lhv: 45.5
   co2: 0.0631
   biogenic_share: 1
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Biomass|FT LPG|w/o CCS
+
+liquefied petroleum gas, synthetic, from biomass, with CCS:
+  lhv: 45.5
+  co2: 0.0631
+  biogenic_share: 1
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Biomass|FT LPG|w CCS
+
+liquefied petroleum gas, synthetic, from coal:
+  lhv: 45.5
+  co2: 0.0631
+  biogenic_share: 0
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Coal|FT LPG|w/o CCS
+
+liquefied petroleum gas, synthetic, from coal, with CCS:
+  lhv: 45.5
+  co2: 0.0631
+  biogenic_share: 0
+  iam_aliases:
+    tiam: Secondary Energy|Liquids|Coal|FT LPG|w CCS
 
 uranium, enriched 3.8%, in fuel element for light water reactor:
   lhv: 4199040
@@ -1065,7 +1121,7 @@ heat, from liquefied petroleum gas, natural:
 heat, from liquefied petroleum gas, synthetic:
   lhv: 1
   co2: 0.0631
-  biogenic_share: 1
+  biogenic_share: 0
 heat, from underground:
   lhv: 1
   co2: 0
@@ -1134,15 +1190,14 @@ Carbon monoxide, from RWGS:
 kerosene, from petroleum:
   lhv: 43
   co2: 0.0715
-  biogenic_share: 1
+  biogenic_share: 0
   ecoinvent_aliases:
     fltr:
       - kerosene production, petroleum refinery operation
   iam_aliases:
     tiam: Secondary Energy|Liquids|Oil|Kerosene
 
-sweet gas, burned:
-  lhv:
+
 kerosene, synthetic, from electrolysis, energy allocation:
   lhv: 43
   co2: 0.0715
