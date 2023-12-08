@@ -480,7 +480,7 @@ diesel, synthetic, from natural gas:
 diesel, synthetic, from natural gas, with CCS:
   lhv: 43
   co2: 0.0732
-  biogenic_share: 1
+  biogenic_share: 0
   iam_aliases:
     tiam: Secondary Energy|Liquids|Natural Gas|FT Diesel|w CCS
   eff_aliases:
@@ -571,7 +571,7 @@ hydrogen, from biomass, with CCS:
 hydrogen, from coal:
   lhv: 120
   co2: 0
-  biogenic_share: 1
+  biogenic_share: 0
   iam_aliases:
     tiam: Secondary Energy|Hydrogen|Coal|w/o CCS
     remind: SE|Hydrogen|Coal|+|w/o CC
@@ -584,7 +584,7 @@ hydrogen, from coal:
 hydrogen, from coal, with CCS:
   lhv: 120
   co2: 0
-  biogenic_share: 1
+  biogenic_share: 0
   iam_aliases:
     tiam: Secondary Energy|Hydrogen|Coal|w CCS
     gcam: Secondary Energy|Production|Hydrogen|Coal|w/CCS
@@ -600,7 +600,7 @@ hydrogen, from coal, with CCS:
 hydrogen, from natural gas:
   lhv: 120
   co2: 0
-  biogenic_share: 1
+  biogenic_share: 0
   iam_aliases:
     tiam: Secondary Energy|Hydrogen|Natural Gas|w/o CCS
     gcam: Secondary Energy|Production|Hydrogen|Gas|w/oCCS
@@ -615,7 +615,7 @@ hydrogen, from natural gas:
 hydrogen, from natural gas, with CCS:
   lhv: 120
   co2: 0
-  biogenic_share: 1
+  biogenic_share: 0
   iam_aliases:
     gcam: Secondary Energy|Production|Hydrogen|Gas|w/CCS
     remind: SE|Hydrogen|Gas|+|w/ CC
