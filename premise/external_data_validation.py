@@ -1,6 +1,7 @@
 """
 Validates datapackages that contain external scenario data.
 """
+
 import numpy as np
 import pandas as pd
 import yaml
@@ -63,7 +64,9 @@ def check_inventories(
                     ),
                     "regionalize": True,
                     "new dataset": False,
-                    "except regions": configuration["regionalize"].get("except regions", []),
+                    "except regions": configuration["regionalize"].get(
+                        "except regions", []
+                    ),
                     "efficiency": val.get("efficiency", []),
                     "replaces": val.get("replaces", []),
                     "replaces in": val.get("replaces in", []),
@@ -614,7 +617,9 @@ def check_external_scenarios(datapackage: list, iam_scenarios: list) -> tuple:
     return datapackage, iam_scenarios
 
 
-def fetch_dataset_description_from_production_pathways(configuration: dict, item: str) -> tuple:
+def fetch_dataset_description_from_production_pathways(
+    configuration: dict, item: str
+) -> tuple:
     for p, v in configuration["production pathways"].items():
         if p == item:
             if "exists in original database" not in v["ecoinvent alias"]:
