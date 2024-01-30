@@ -15,14 +15,12 @@ from .logger import create_logger
 from .transformation import (
     BaseTransformation,
     IAMDataCollection,
-    InventorySet,
     List,
     get_shares_from_production_volume,
     np,
     uuid,
     ws,
 )
-from .utils import eidb_label
 from .validation import BiomassValidation
 
 IAM_BIOMASS_VARS = VARIABLES_DIR / "biomass_variables.yaml"
@@ -34,7 +32,6 @@ def _update_biomass(
     scenario,
     version,
     system_model,
-    use_absolute_efficiency,
     cache=None,
 ):
     biomass = Biomass(
@@ -45,7 +42,6 @@ def _update_biomass(
         year=scenario["year"],
         version=version,
         system_model=system_model,
-        use_absolute_efficiency=use_absolute_efficiency,
         cache=cache,
     )
 
@@ -97,7 +93,6 @@ class Biomass(BaseTransformation):
         year: int,
         version: str,
         system_model: str,
-        use_absolute_efficiency: bool = False,
         cache: dict = None,
     ) -> None:
         super().__init__(
@@ -116,7 +111,7 @@ class Biomass(BaseTransformation):
     def create_biomass_markets(self) -> None:
         # print("Create biomass markets.")
 
-        with open(IAM_BIOMASS_VARS, "r", encoding="utf-8") as stream:
+        with open(IAM_BIOMASS_VARS, encoding="utf-8") as stream:
             biomass_map = yaml.safe_load(stream)
 
         # create region-specific "Supply of forest residue" datasets
@@ -148,13 +143,7 @@ class Biomass(BaseTransformation):
                 "inputs of wood chips, wet-basis, have been multiplied by a factor 2.5, "
                 "to reach a LHV of 19 MJ (they have a LHV of 7.6 MJ, wet basis).",
                 "unit": "kilogram",
-                "database": eidb_label(
-                    self.model,
-                    self.scenario,
-                    self.year,
-                    self.version,
-                    self.system_model,
-                ),
+                "database": "premise",
                 "code": str(uuid.uuid4().hex),
                 "exchanges": [
                     {

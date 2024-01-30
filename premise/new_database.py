@@ -1,5 +1,5 @@
 """
-ecoinvent_modification.py exposes methods to create a database, perform transformations on it,
+new_database.py exposes methods to create a database, perform transformations on it,
 as well as export it back.
 
 """
@@ -16,6 +16,7 @@ from multiprocessing.pool import ThreadPool as Pool
 from pathlib import Path
 from typing import List, Union
 
+import bw2data
 import datapackage
 import yaml
 
@@ -55,8 +56,6 @@ from .utils import (
 )
 
 logger = logging.getLogger("module")
-
-import bw2data
 
 if int(bw2data.__version__[0]) >= 4:
     from .brightway25 import write_brightway_database
@@ -171,7 +170,8 @@ config = load_constants()
 
 # Disable printing
 def blockPrint():
-    sys.stdout = open(os.devnull, "w")
+    with open(os.devnull, "w") as devnull:
+        sys.stdout = devnull
 
 
 # Restore printing
@@ -455,7 +455,6 @@ def _update_all(
         scenario=scenario,
         version=version,
         system_model=system_model,
-        use_absolute_efficiency=use_absolute_efficiency,
         cache=cache,
     )
     scenario, cache = _update_electricity(
@@ -515,6 +514,9 @@ def _export_to_matrices(obj):
 def _export_to_simapro(obj):
     obj.export_db_to_simapro()
 
+def _export_to_olca(obj):
+    obj.export_db_to_simapro(olca_compartments=True)
+
 
 class NewDatabase:
     """
@@ -522,11 +524,7 @@ class NewDatabase:
 
     :ivar source_type: the source of the ecoinvent database. Can be `brigthway` or `ecospold`.
     :vartype source_type: str
-    :ivar source_db: name of the ecoinvent source database
     :vartype source_db: str
-    :ivar source_version: version of the ecoinvent source database.
-        Currently works with ecoinvent cut-off 3.5, 3.6, 3.7, 3.7.1, 3.8, 3.9 and 3.9.1.
-    :vartype source_version: str
     :ivar system_model: Can be `cutoff` (default) or `consequential`.
     :vartype system_model: str
 
@@ -616,9 +614,8 @@ class NewDatabase:
             data = self.__find_cached_inventories(source_db)
             if data is not None:
                 self.database.extend(data)
-
         else:
-            self.__import_inventories(keep_uncertainty_data=keep_uncertainty_data)
+            self.__import_inventories()
 
         if self.additional_inventories:
             data = self.__import_additional_inventories(self.additional_inventories)
@@ -681,7 +678,8 @@ class NewDatabase:
         # check that file path leads to an existing file
         if file_name.exists():
             # return the cached database
-            return pickle.load(open(file_name, "rb"))
+            with open(file_name, "rb") as f:
+                return pickle.load(f)
 
         # extract the database, pickle it for next time and return it
         print("Cannot find cached database. Will create one now for next time...")
@@ -713,7 +711,8 @@ class NewDatabase:
         # check that file path leads to an existing file
         if file_name.exists():
             # return the cached database
-            return pickle.load(open(file_name, "rb"))
+            with open(file_name, "rb") as f:
+                return pickle.load(f)
 
         # else, extract the database, pickle it for next time and return it
         print("Cannot find cached inventories. Will create them now for next time...")
@@ -906,7 +905,6 @@ class NewDatabase:
                     scenario=scenario,
                     version=self.version,
                     system_model=self.system_model,
-                    use_absolute_efficiency=self.use_absolute_efficiency,
                 )
 
         print("Done!\n")
@@ -1259,14 +1257,14 @@ class NewDatabase:
 
     def update_external_scenario(self):
         if self.datapackages:
-            for i, scenario in enumerate(self.scenarios):
-                for d, datapackage in enumerate(self.datapackages):
-                    if "inventories" in [r.name for r in datapackage.resources]:
-                        inventories = self.__import_additional_inventories(datapackage)
+            for scenario in self.scenarios:
+                for d, data_package in enumerate(self.datapackages):
+                    if "inventories" in [r.name for r in data_package.resources]:
+                        inventories = self.__import_additional_inventories(data_package)
                     else:
                         inventories = []
 
-                    resource = datapackage.get_resource("config")
+                    resource = data_package.get_resource("config")
                     config_file = yaml.safe_load(resource.raw_read())
 
                     checked_inventories, checked_database = check_inventories(
@@ -1291,6 +1289,7 @@ class NewDatabase:
                     system_model=self.system_model,
                 )
                 external_scenario.create_custom_markets()
+                external_scenario.relink_datasets()
                 scenario["database"] = external_scenario.database
             print(f"Log file of exchanges saved under {DATA_DIR / 'logs'}.")
 
@@ -1380,14 +1379,14 @@ class NewDatabase:
         self,
         name: str = f"super_db_{date.today()}",
         filepath: str = None,
-        format: str = "excel",
+        file_format: str = "excel",
     ) -> None:
         """
         Register a super-structure database,
         according to https://github.com/dgdekoning/brightway-superstructure
         :param name: name of the super-structure database
         :param filepath: filepath of the "scenarios difference file"
-        :param format: format of the "scenarios difference file" export. Can be "excel", "csv" or "feather".
+        :param file_format: format of the "scenarios difference file" export. Can be "excel", "csv" or "feather".
         :return: filepath of the "scenarios difference file"
         """
 
@@ -1416,7 +1415,7 @@ class NewDatabase:
             db_name=name,
             filepath=filepath,
             version=self.version,
-            format=format,
+            file_format=file_format,
             scenario_list=list_scenarios,
         )
 
@@ -1457,6 +1456,7 @@ class NewDatabase:
                     scenario["year"],
                     version=self.version,
                     system_model=self.system_model,
+                    datapackages=self.datapackages
                 )
                 for scenario in self.scenarios
             ]
@@ -1523,8 +1523,6 @@ class NewDatabase:
 
         print("Write new database(s) to matrix.")
 
-        cache = {}
-
         # use multiprocessing to speed up the process
 
         if self.multiprocessing:
@@ -1536,8 +1534,7 @@ class NewDatabase:
                 results = pool.starmap(_prepare_database, args)
 
             for s, scenario in enumerate(self.scenarios):
-                self.scenarios[s] = results[s][0]
-                cache.update(results[s][1])
+                self.scenarios[s] = results[s]
 
             with ProcessPool(processes=multiprocessing.cpu_count()) as pool:
                 args = [
@@ -1588,8 +1585,42 @@ class NewDatabase:
                 keep_uncertainty_data=self.keep_uncertainty_data,
             )
 
-        for scen, scenario in enumerate(self.scenarios):
+        for scenario in self.scenarios:
             Export(scenario, filepath, self.version).export_db_to_simapro()
+
+        # generate scenario report
+        self.generate_scenario_report()
+        # generate change report from logs
+        self.generate_change_report()
+
+    def write_db_to_olca(self, filepath: str = None):
+        """
+        Exports database as a Simapro CSV file to be imported in OpenLCA
+
+        :param filepath: path provided by the user to store the exported import file
+        :type filepath: str
+
+        """
+
+        filepath = filepath or Path(Path.cwd() / "export" / "olca")
+
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+
+        print("Write Simapro import file(s) for OpenLCA.")
+
+        # use multiprocessing to speed up the process
+
+        for scenario in self.scenarios:
+            _prepare_database(
+                scenario=scenario,
+                db_name="database",
+                original_database=self.database,
+                keep_uncertainty_data=self.keep_uncertainty_data,
+            )
+
+        for scenario in self.scenarios:
+            Export(scenario, filepath, self.version).export_db_to_simapro(olca_compartments=True)
 
         # generate scenario report
         self.generate_scenario_report()
@@ -1607,7 +1638,6 @@ class NewDatabase:
             raise ValueError(f"No cached inventories found at {cache_fp}.")
 
         # use multiprocessing to speed up the process
-
         for scenario in self.scenarios:
             _prepare_database(
                 scenario=scenario,

@@ -44,7 +44,7 @@ COAL_POWER_PLANTS_DATA = DATA_DIR / "electricity" / "coal_power_emissions_2012_v
 
 def print_missing_variables(missing_vars):
     if missing_vars:
-        print(f"The following variables are missing from the IAM file:")
+        print("The following variables are missing from the IAM file:")
     table = PrettyTable(
         [
             "Variable",
@@ -55,11 +55,12 @@ def print_missing_variables(missing_vars):
     print(table)
 
 
-def get_delimiter(data=None, filepath=None):
+def get_delimiter(data=None, filepath=None) -> str:
     sniffer = csv.Sniffer()
     if filepath:
-        data = open(filepath, "r").readline()
-    delimiter = sniffer.sniff(data).delimiter
+        with open(filepath, "r", encoding="utf-8") as stream:
+            data = stream.readline()
+    delimiter = str(sniffer.sniff(data).delimiter)
     return delimiter
 
 
@@ -813,8 +814,8 @@ class IAMDataCollection:
 
         # identify the lowest and highest column name that is numeric
         # and consider it the minimum year
-        self.min_year = min([x for x in dataframe.columns if isinstance(x, int)])
-        self.max_year = max([x for x in dataframe.columns if isinstance(x, int)])
+        self.min_year = min(x for x in dataframe.columns if isinstance(x, int))
+        self.max_year = max(x for x in dataframe.columns if isinstance(x, int))
 
         dataframe = dataframe.reset_index()
 
@@ -848,11 +849,8 @@ class IAMDataCollection:
             .to_xarray()
         )
 
-        # add the unit as an atribute, as a dictionary with variables as keys
-        array.attrs["unit"] = {
-            k: v
-            for k, v in dataframe.groupby("variables")["unit"].first().to_dict().items()
-        }
+        # add the unit as an attribute, as a dictionary with variables as keys
+        array.attrs["unit"] = dict(dataframe.groupby('variables')['unit'].first().to_dict().items())
 
         return array
 
@@ -1088,15 +1086,20 @@ class IAMDataCollection:
         # if variable is missing, we assume that the rate is 0
         # and that none of the  CO2 emissions are captured
 
+        if isinstance(dict_vars.get("cement - cco2", []), str):
+            dict_vars["cement - cco2"] = [dict_vars["cement - cco2"],]
+
         if not any(
             x in data.variables.values.tolist()
             for x in dict_vars.get("cement - cco2", [])
         ):
+            print("Cannot find variables for cement capture rate.")
             cement_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
                 coords=[data.region, data.year],
                 dims=["region", "year"],
             )
+
         else:
             cement_rate = data.loc[:, dict_vars["cement - cco2"], :].sum(
                 dim=["variables"]
@@ -1104,10 +1107,14 @@ class IAMDataCollection:
 
         cement_rate.coords["variables"] = "cement"
 
+        if isinstance(dict_vars.get("steel - cco2", []), str):
+            dict_vars["steel - cco2"] = [dict_vars["steel - cco2"],]
+
         if not any(
             x in data.variables.values.tolist()
             for x in dict_vars.get("steel - cco2", [])
         ):
+            print("Cannot find variables for steel capture rate.")
             steel_rate = xr.DataArray(
                 np.zeros((len(data.region), len(data.year))),
                 coords=[data.region, data.year],
@@ -1412,9 +1419,9 @@ class IAMDataCollection:
                             ref_years[y] = array.year.values.min()
 
                     for v, y in ref_years.items():
-                        array.loc[dict(variables=v)] = array.loc[
-                            dict(variables=v)
-                        ] / array.loc[dict(variables=v)].sel(year=int(y))
+                        array.loc[{"variables": v}] = array.loc[
+                            {"variables": v}
+                        ] / array.loc[{"variables": v}].sel(year=int(y))
 
                     # convert NaNs to ones
                     array = array.fillna(1)
