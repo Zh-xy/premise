@@ -1221,6 +1221,9 @@ class IAMDataCollection:
         # we ensure that the rate can only be between 0 and 1
         rate.values = np.clip(rate, 0, 1)
 
+        # values under 0.001 are considered as 0
+        rate = xr.where(rate < 0.001, 0, rate)
+
         return rate
 
     def __get_iam_production_volumes(
@@ -1316,7 +1319,13 @@ class IAMDataCollection:
                 BytesIO(scenario_data),
             )
             # set headers from first row
-            df.columns = resource.headers
+            try:
+                df.columns = resource.headers
+            except ValueError as err:
+                raise ValueError(
+                    f"The number of headers in scenario data file are not correct. {err}"
+                    f"Check that the values in the scenario data file are separated by commas, not semicolons."
+                ) from err
 
             resource = dp.get_resource("config")
             config_file = yaml.safe_load(resource.raw_read())

@@ -79,7 +79,7 @@ def fetch_avg_capital_replacement_rate(avg_lifetime: int, data: xr.DataArray) ->
     """
     Calculate the average capital replacement rate of a market.
     """
-    return (-1 / avg_lifetime * data.sum(dim="variables").values).item(0) or 0.0
+    return (-1 / avg_lifetime) or 0.0
 
 
 def fetch_capital_replacement_rates(
@@ -164,7 +164,7 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
     duration: int = args.get("duration", False)
     foresight: bool = args.get("foresight", False)
     lead_time: int = args.get("lead time", False)
-    capital_repl_rate: bool = args.get("capital replacement rate", False)
+    capital_repl_rate: bool = args.get("capital replacement rate", True)
     measurement: int = args.get("measurement", 0)
     weighted_slope_start: float = args.get("weighted slope start", 0.75)
     weighted_slope_end: float = args.get("weighted slope end", 1.0)
@@ -756,6 +756,7 @@ def consequential_method(data: xr.DataArray, year: int, args: dict) -> xr.DataAr
             market_shares.loc[{"region": region}] /= market_shares.loc[
                 {"region": region}
             ].sum(dim="variables")
+
         # increasing market or
         # market decreasing slowlier than the
         # capital renewal rate

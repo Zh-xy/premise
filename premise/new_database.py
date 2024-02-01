@@ -126,6 +126,7 @@ FILEPATH_GEOTHERMAL_HEAT_INVENTORIES = INVENTORY_DIR / "lci-geothermal.xlsx"
 FILEPATH_METHANOL_FUELS_INVENTORIES = (
     INVENTORY_DIR / "lci-synfuels-from-methanol-from-electrolysis.xlsx"
 )
+FILEPATH_METHANOL_FROM_WOOD = INVENTORY_DIR / "lci-synfuels-from-methanol-from-wood.xlsx"
 FILEPATH_METHANOL_CEMENT_FUELS_INVENTORIES = (
     INVENTORY_DIR / "lci-synfuels-from-methanol-from-cement-plant.xlsx"
 )
@@ -770,6 +771,7 @@ class NewDatabase:
             (FILEPATH_HYDROGEN_COAL_GASIFICATION_INVENTORIES, "3.7"),
             (FILEPATH_METHANOL_FROM_COAL_FUELS_INVENTORIES, "3.7"),
             (FILEPATH_METHANOL_FROM_COAL_FUELS_WITH_CCS_INVENTORIES, "3.7"),
+            (FILEPATH_METHANOL_FROM_WOOD, "3.7"),
             (FILEPATH_HYDROGEN_DISTRI_INVENTORIES, "3.7"),
             (FILEPATH_HYDROGEN_BIOGAS_INVENTORIES, "3.7"),
             (FILEPATH_HYDROGEN_NATGAS_INVENTORIES, "3.7"),
@@ -1292,7 +1294,10 @@ class NewDatabase:
                 external_scenario.create_custom_markets()
                 external_scenario.relink_datasets()
                 scenario["database"] = external_scenario.database
-            print(f"Log file of exchanges saved under {DATA_DIR / 'logs'}.")
+            print(
+                f"Log of changes saved under 'External scenarios' tab "
+                f"in change report: {DATA_DIR / 'export' / 'change reports'}."
+            )
 
         print("Done!\n")
 
