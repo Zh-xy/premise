@@ -126,7 +126,9 @@ FILEPATH_GEOTHERMAL_HEAT_INVENTORIES = INVENTORY_DIR / "lci-geothermal.xlsx"
 FILEPATH_METHANOL_FUELS_INVENTORIES = (
     INVENTORY_DIR / "lci-synfuels-from-methanol-from-electrolysis.xlsx"
 )
-FILEPATH_METHANOL_FROM_WOOD = INVENTORY_DIR / "lci-synfuels-from-methanol-from-wood.xlsx"
+FILEPATH_METHANOL_FROM_WOOD = (
+    INVENTORY_DIR / "lci-synfuels-from-methanol-from-wood.xlsx"
+)
 FILEPATH_METHANOL_CEMENT_FUELS_INVENTORIES = (
     INVENTORY_DIR / "lci-synfuels-from-methanol-from-cement-plant.xlsx"
 )
