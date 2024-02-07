@@ -21,6 +21,7 @@ from cryptography.fernet import Fernet
 from prettytable import PrettyTable
 
 from .filesystem_constants import DATA_DIR, IAM_OUTPUT_DIR, VARIABLES_DIR
+from .geomap import Geomap
 from .marginal_mixes import consequential_method
 
 IAM_ELEC_VARS = VARIABLES_DIR / "electricity_variables.yaml"
@@ -74,6 +75,33 @@ def get_crops_properties() -> dict:
         crop_props = yaml.safe_load(stream)
 
     return crop_props
+
+
+def get_oil_product_volumes(model) -> pd.DataFrame:
+    """
+    Load the file `oil_product_volumes.csv` that contains recent oil product volumes
+    consumed in each country. This file is used to estimate the split of gasoline, diesel, LPG and kerosene
+    from the `liquid fossil` category in the IAM data.
+    """
+    filepath = DATA_DIR / "fuels" / "oil_product_volumes.csv"
+    df = pd.read_csv(
+        filepath,
+        delimiter=get_delimiter(filepath=filepath),
+        low_memory=False,
+        na_filter=False,
+    )
+
+    geo = Geomap(model=model)
+
+    df["region"] = df.apply(lambda x: geo.ecoinvent_to_iam_location(x.country), axis=1)
+    df = df.drop("country", axis=1)
+    df = df.groupby(["region"]).sum()
+    # add the world
+    df.loc["World"] = df.sum()
+    # normalize by the sum
+    df = df.div(df.sum(axis=1), axis=0)
+
+    return df
 
 
 @lru_cache
@@ -417,10 +445,16 @@ class IAMDataCollection:
         # flatten the list of lists
         new_vars = flatten(new_vars)
 
+        # if "liquid fossil fuels" is in the list of fuel variables
+        # we add the split of gasoline, diesel, LPG and kerosene
+        # to `data`, because it means it's not already in the IAM file.
         data = self.__get_iam_data(
             key=key,
             filedir=filepath_iam_files,
             variables=new_vars,
+            split_fossil_liquid_fuels=(
+                fuel_prod_vars if "liquid fossil fuels" in fuel_prod_vars else None
+            ),
         )
 
         self.data = data
@@ -446,18 +480,17 @@ class IAMDataCollection:
                 for k, v in fuel_prod_vars.items()
                 if any(
                     k.lower().startswith(x)
-                    for x in ["gasoline", "ethanol", "methanol", "bioethanol"]
+                    for x in [
+                        "gasoline",
+                        "ethanol",
+                        "methanol",
+                        "bioethanol",
+                        "petrol,",
+                    ]
                 )
             },
             system_model=self.system_model,
         )
-        if self.petrol_markets is not None:
-            # divide the volume of "gasoline" by 2
-            self.petrol_markets.loc[dict(variables="gasoline")] /= 2
-            # normalize by the sum
-            self.petrol_markets = self.petrol_markets / self.petrol_markets.sum(
-                dim="variables"
-            )
 
         self.diesel_markets = self.__fetch_market_data(
             data=data,
@@ -474,13 +507,6 @@ class IAMDataCollection:
             },
             system_model=self.system_model,
         )
-        if self.diesel_markets is not None:
-            # divide the volume of "gasoline" by 2
-            self.diesel_markets.loc[dict(variables="diesel")] /= 2
-            # normalize by the sum
-            self.diesel_markets = self.diesel_markets / self.diesel_markets.sum(
-                dim="variables"
-            )
 
         self.gas_markets = self.__fetch_market_data(
             data=data,
@@ -732,7 +758,11 @@ class IAMDataCollection:
         return dict_vars
 
     def __get_iam_data(
-        self, key: bytes, filedir: Path, variables: List
+        self,
+        key: bytes,
+        filedir: Path,
+        variables: List,
+        split_fossil_liquid_fuels: dict = None,
     ) -> xr.DataArray:
         """
         Read the IAM result file and return an `xarray` with dimensions:
@@ -830,7 +860,28 @@ class IAMDataCollection:
             x.lower() if isinstance(x, str) else x for x in dataframe.columns
         ]
 
-        # dataframe = dataframe.loc[dataframe["variable"].isin(variables)]
+        # if split_fossil_liquid_fuels is not None
+        # we add the split of gasoline, diesel, LPG and kerosene
+
+        if split_fossil_liquid_fuels is not None:
+            # get the split of gasoline, diesel, LPG and kerosene
+            df = get_oil_product_volumes(self.model)
+            variable_liquid_fuel = split_fossil_liquid_fuels["liquid fossil fuels"]
+
+            for fuel_var, iam_var in split_fossil_liquid_fuels.items():
+                if iam_var not in dataframe["variable"].unique():
+                    new_fuel_df = dataframe.loc[
+                        dataframe["variable"] == variable_liquid_fuel
+                    ]
+                    fuel_share = df[fuel_var].reindex(new_fuel_df["region"])
+                    new_fuel_df.loc[:, "variable"] = iam_var
+                    new_fuel_df.loc[
+                        :, new_fuel_df.select_dtypes(include=["number"]).columns[0] :
+                    ] *= fuel_share.values[:, np.newaxis]
+                    dataframe = pd.concat([dataframe, new_fuel_df])
+
+        # filter out unused variables
+        dataframe = dataframe.loc[dataframe["variable"].isin(variables)]
 
         dataframe = dataframe.rename(columns={"variable": "variables"})
 

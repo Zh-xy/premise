@@ -2,8 +2,6 @@
 electricity.py contains the class `Electricity`, which inherits from `BaseTransformation`.
 This class transforms the electricity markets and power plants of the wurst database,
 based on projections from the IAM scenario.
-It also creates electricity markets which mix is a weighted-average
-over a certain period (e.g., 10, 20 years).
 It eventually re-links all the electricity-consuming activities of the wurst database to
 the newly created electricity markets.
 
@@ -16,7 +14,6 @@ from functools import lru_cache
 
 import yaml
 
-from .data_collection import get_delimiter
 from .export import biosphere_flows_dictionary
 from .filesystem_constants import DATA_DIR, VARIABLES_DIR
 from .logger import create_logger
@@ -54,30 +51,76 @@ def load_electricity_variables() -> dict:
     return techs
 
 
-def get_losses_per_country_dict() -> Dict[str, Dict[str, float]]:
-    """
-    Create a dictionary with ISO country codes as keys and loss ratios as values.
-    :return: ISO country code (keys) to loss ratio (values) dictionary
-    :rtype: dict
-    """
+def get_losses_per_country(database: list) -> Dict[str, Dict[str, float]]:
+    losses = defaultdict(dict)
+    for ds in database:
+        if ds["name"] in [
+            "market for electricity, high voltage",
+            "market for electricity, medium voltage",
+            "market for electricity, low voltage",
+        ]:
+            country = ds["location"]
+            if "high voltage" in ds["name"]:
+                market_type = "high"
+            elif "medium voltage" in ds["name"]:
+                market_type = "medium"
+            else:
+                market_type = "low"
 
-    if not LOSS_PER_COUNTRY.is_file():
-        raise FileNotFoundError(
-            "The production per country dictionary " "file could not be found."
-        )
+            for e in ds["exchanges"]:
+                if (
+                    e["name"].startswith("market for electricity")
+                    and e["type"] == "technosphere"
+                ):
+                    losses[country].update(
+                        {f"Transformation loss {market_type} voltage": e["amount"]}
+                    )
 
-    sep = get_delimiter(filepath=LOSS_PER_COUNTRY)
+            for e in ds["exchanges"]:
+                if e["type"] == "production":
+                    if "production volume" in e:
+                        if "Production volume" not in losses[country]:
+                            losses[country].update(
+                                {"Production volume": e["production volume"]}
+                            )
+                        else:
+                            if (
+                                e["production volume"]
+                                > losses[country]["Production volume"]
+                            ):
+                                losses[country].update(
+                                    {"Production volume": e["production volume"]}
+                                )
 
-    with open(LOSS_PER_COUNTRY, encoding="utf-8") as file:
-        csv_list = [[val.strip() for val in r.split(sep)] for r in file.readlines()]
+        if (
+            ds["name"]
+            == "electricity voltage transformation from medium to low voltage"
+        ):
+            country = ds["location"]
+            for e in ds["exchanges"]:
+                if (
+                    e["name"].startswith("market for electricity")
+                    and e["type"] == "technosphere"
+                ):
+                    losses[country].update(
+                        {f"Transmission loss to low voltage": e["amount"] - 1}
+                    )
 
-    (_, *header), *data = csv_list
-    csv_dict = {}
-    for row in data:
-        key, *values = row
-        csv_dict[key] = {key: float(value) for key, value in zip(header, values)}
+        if (
+            ds["name"]
+            == "electricity voltage transformation from high to medium voltage"
+        ):
+            country = ds["location"]
+            for e in ds["exchanges"]:
+                if (
+                    e["name"].startswith("market for electricity")
+                    and e["type"] == "technosphere"
+                ):
+                    losses[country].update(
+                        {f"Transmission loss to medium voltage": e["amount"] - 1}
+                    )
 
-    return csv_dict
+    return losses
 
 
 def get_production_weighted_losses(
@@ -90,7 +133,6 @@ def get_production_weighted_losses(
     """
 
     # Fetch locations contained in IAM region
-
     cumul_prod, transf_loss = 0.0, 0.0
     for loc in locs:
         dict_loss = losses.get(
@@ -102,7 +144,16 @@ def get_production_weighted_losses(
             dict_loss["Transformation loss high voltage"]
             * dict_loss["Production volume"]
         )
+
         cumul_prod += dict_loss["Production volume"]
+
+    if cumul_prod == 0:
+        return {
+            "high": {"transf_loss": 0.0, "distr_loss": 0.0},
+            "medium": {"transf_loss": 0.0, "distr_loss": 0.0},
+            "low": {"transf_loss": 0.0, "distr_loss": 0.0},
+        }
+
     transf_loss /= cumul_prod
 
     high = {"transf_loss": transf_loss, "distr_loss": 0.0}
@@ -165,7 +216,6 @@ def _update_electricity(
     version,
     system_model,
     use_absolute_efficiency,
-    cache=None,
 ):
     electricity = Electricity(
         database=scenario["database"],
@@ -176,7 +226,8 @@ def _update_electricity(
         version=version,
         system_model=system_model,
         use_absolute_efficiency=use_absolute_efficiency,
-        cache=cache,
+        cache=scenario.get("cache"),
+        index=scenario.get("index"),
     )
 
     electricity.create_missing_power_plant_datasets()
@@ -202,6 +253,9 @@ def _update_electricity(
         print("No electricity efficiencies found in IAM data. Skipping.")
 
     electricity.relink_datasets()
+    scenario["database"] = electricity.database
+    scenario["index"] = electricity.index
+    scenario["cache"] = electricity.cache
 
     validate = ElectricityValidation(
         model=scenario["model"],
@@ -214,10 +268,7 @@ def _update_electricity(
 
     validate.run_electricity_checks()
 
-    scenario["database"] = electricity.database
-    cache = electricity.cache
-
-    return scenario, cache
+    return scenario
 
 
 class Electricity(BaseTransformation):
@@ -248,6 +299,7 @@ class Electricity(BaseTransformation):
         system_model: str,
         use_absolute_efficiency: bool = False,
         cache: dict = None,
+        index: dict = None,
     ) -> None:
         super().__init__(
             database,
@@ -258,6 +310,7 @@ class Electricity(BaseTransformation):
             version,
             system_model,
             cache,
+            index,
         )
         mapping = InventorySet(self.database, model=self.model)
         self.powerplant_map = mapping.generate_powerplant_map()
@@ -269,7 +322,7 @@ class Electricity(BaseTransformation):
 
         self.powerplant_fuels_map = mapping.generate_powerplant_fuels_map()
         self.production_per_tech = self.get_production_per_tech_dict()
-        losses = get_losses_per_country_dict()
+        losses = get_losses_per_country(self.database)
         self.network_loss = {
             loc: get_production_weighted_losses(
                 losses, self.geo.iam_to_ecoinvent_location(loc)
@@ -373,13 +426,6 @@ class Electricity(BaseTransformation):
             technology: self.powerplant_map[technology] for technology in technologies
         }
 
-        if self.system_model == "consequential":
-            periods = [
-                0,
-            ]
-        else:
-            periods = [0, 20, 40, 60]
-
         # Create an empty dataset
         generic_dataset = {
             "name": "market group for electricity, low voltage",
@@ -391,7 +437,7 @@ class Electricity(BaseTransformation):
             "exchanges": [],
         }
 
-        def generate_regional_markets(region: str, period: int) -> dict:
+        def generate_regional_markets(region: str) -> dict:
             new_dataset = copy.deepcopy(generic_dataset)
             new_dataset["location"] = region
             new_dataset["code"] = str(uuid.uuid4().hex)
@@ -448,38 +494,17 @@ class Electricity(BaseTransformation):
                     for supplier in tech_suppliers[technology]
                 ]
 
-            # `period` is a period of time considered to create time-weighted average mix
-            # when `period` == 0, this is a market mix for the year `self.year`
-            # when `period` == 10, this is a market mix for the period `self.year` + 10
-            # this is useful for systems that consume electricity
-            # over a long period of time (e.g., buildings, BEVs, etc.)
-
-            if self.system_model == "consequential":
-                electricity_mix = dict(
-                    zip(
-                        self.iam_data.electricity_markets.variables.values,
-                        self.iam_data.electricity_markets.sel(
-                            region=region, year=self.year
-                        ).values,
+            electricity_mix = dict(
+                zip(
+                    self.iam_data.electricity_markets.variables.values,
+                    self.iam_data.electricity_markets.sel(region=region)
+                    .interp(
+                        year=self.year,
+                        kwargs={"fill_value": "extrapolate"},
                     )
+                    .values,
                 )
-
-            else:
-                # Create a time-weighted average mix
-                electricity_mix = dict(
-                    zip(
-                        self.iam_data.electricity_markets.variables.values,
-                        self.iam_data.electricity_markets.sel(
-                            region=region,
-                        )
-                        .interp(
-                            year=np.arange(self.year, self.year + period + 1),
-                            kwargs={"fill_value": "extrapolate"},
-                        )
-                        .mean(dim="year")
-                        .values,
-                    )
-                )
+            )
 
             # fetch production volume
             production_volume = self.iam_data.production_volumes.sel(
@@ -502,15 +527,6 @@ class Electricity(BaseTransformation):
                     "location": region,
                 }
             ]
-
-            if period != 0:
-                # this dataset is for a period of time
-                new_dataset["name"] += f", {period}-year period"
-                new_dataset["comment"] += (
-                    f" Average electricity mix over a {period}"
-                    f"-year period {self.year}-{self.year + period}."
-                )
-                new_exchanges[0]["name"] += f", {period}-year period"
 
             # Second, add an input of sulfur hexafluoride (SF6) emission to compensate the transformer's leakage
             # And an emission of a corresponding amount
@@ -614,11 +630,7 @@ class Electricity(BaseTransformation):
                     "amount": (1 - solar_amount) * (1 + distr_loss),
                     "type": "technosphere",
                     "product": "electricity, medium voltage",
-                    "name": (
-                        "market group for electricity, medium voltage"
-                        if period == 0
-                        else f"market group for electricity, medium voltage, {period}-year period"
-                    ),
+                    "name": "market group for electricity, medium voltage",
                     "unit": "kilowatt hour",
                     "location": region,
                 }
@@ -631,11 +643,7 @@ class Electricity(BaseTransformation):
                     "amount": transf_loss,
                     "type": "technosphere",
                     "product": "electricity, low voltage",
-                    "name": (
-                        "market group for electricity, low voltage"
-                        if period == 0
-                        else f"market group for electricity, low voltage, {period}-year period"
-                    ),
+                    "name": "market group for electricity, low voltage",
                     "unit": "kilowatt hour",
                     "location": region,
                 }
@@ -656,9 +664,8 @@ class Electricity(BaseTransformation):
             return new_dataset
 
         new_datasets = {
-            (region, period): generate_regional_markets(region, period)
+            region: generate_regional_markets(region)
             for region in self.regions
-            for period in periods
             if region != "World"
         }
 
@@ -668,14 +675,12 @@ class Electricity(BaseTransformation):
             self.write_log(ds)
             self.add_to_index(ds)
 
-        for period in periods:
-            new_world_dataset = self.generate_world_market(
-                dataset=copy.deepcopy(generic_dataset),
-                regions=self.regions,
-                period=period,
-            )
-            self.database.append(new_world_dataset)
-            self.write_log(new_world_dataset)
+        new_world_dataset = self.generate_world_market(
+            dataset=copy.deepcopy(generic_dataset),
+            regions=self.regions,
+        )
+        self.database.append(new_world_dataset)
+        self.write_log(new_world_dataset)
 
     def create_new_markets_medium_voltage(self) -> None:
         """
@@ -696,14 +701,7 @@ class Electricity(BaseTransformation):
             "exchanges": [],
         }
 
-        if self.system_model == "consequential":
-            periods = [
-                0,
-            ]
-        else:
-            periods = [0, 20, 40, 60]
-
-        def generate_regional_markets(region: str, period: int) -> dict:
+        def generate_regional_markets(region: str) -> dict:
 
             new_dataset = copy.deepcopy(generic_dataset)
             new_dataset["location"] = region
@@ -711,12 +709,6 @@ class Electricity(BaseTransformation):
 
             transf_loss = self.network_loss[region]["medium"]["transf_loss"]
             distr_loss = self.network_loss[region]["medium"]["distr_loss"]
-
-            # `period` is a period of time considered to create time-weighted average mix
-            # when `period` == 0, this is a market mix for the year `self.year`
-            # when `period` == 10, this is a market mix for the period `self.year` + 10
-            # this is useful for systems that consume electricity
-            # over a long period of time (e.g., buildings, BEVs, etc.)
 
             # fetch production volume
             production_volume = self.iam_data.production_volumes.sel(
@@ -740,15 +732,6 @@ class Electricity(BaseTransformation):
                 }
             ]
 
-            if period != 0:
-                # this dataset is for a period of time
-                new_dataset["name"] += f", {period}-year period"
-                new_dataset["comment"] += (
-                    f" Average electricity mix over a {period}"
-                    f"-year period {self.year}-{self.year + period}."
-                )
-                new_exchanges[0]["name"] += f", {period}-year period"
-
             # Second, add:
             # * an input from the high voltage market, including transmission loss
             # * a self-consuming input for transformation loss
@@ -760,11 +743,7 @@ class Electricity(BaseTransformation):
                     "amount": 1 + distr_loss,
                     "type": "technosphere",
                     "product": "electricity, high voltage",
-                    "name": (
-                        "market group for electricity, high voltage"
-                        if period == 0
-                        else f"market group for electricity, high voltage, {period}-year period"
-                    ),
+                    "name": "market group for electricity, high voltage",
                     "unit": "kilowatt hour",
                     "location": region,
                 }
@@ -777,11 +756,7 @@ class Electricity(BaseTransformation):
                     "amount": transf_loss,
                     "type": "technosphere",
                     "product": "electricity, medium voltage",
-                    "name": (
-                        "market group for electricity, medium voltage"
-                        if period == 0
-                        else f"market group for electricity, medium voltage, {period}-year period"
-                    ),
+                    "name": "market group for electricity, medium voltage",
                     "unit": "kilowatt hour",
                     "location": region,
                 }
@@ -871,9 +846,8 @@ class Electricity(BaseTransformation):
             return new_dataset
 
         new_datasets = {
-            (region, period): generate_regional_markets(region, period)
+            region: generate_regional_markets(region)
             for region in self.regions
-            for period in periods
             if region != "World"
         }
 
@@ -883,14 +857,12 @@ class Electricity(BaseTransformation):
             self.write_log(ds)
             self.add_to_index(ds)
 
-        for period in periods:
-            new_world_dataset = self.generate_world_market(
-                dataset=copy.deepcopy(generic_dataset),
-                regions=self.regions,
-                period=period,
-            )
-            self.database.append(new_world_dataset)
-            self.write_log(new_world_dataset)
+        new_world_dataset = self.generate_world_market(
+            dataset=copy.deepcopy(generic_dataset),
+            regions=self.regions,
+        )
+        self.database.append(new_world_dataset)
+        self.write_log(new_world_dataset)
 
     def create_new_markets_high_voltage(self) -> None:
         """
@@ -921,14 +893,7 @@ class Electricity(BaseTransformation):
             "exchanges": [],
         }
 
-        if self.system_model == "consequential":
-            periods = [
-                0,
-            ]
-        else:
-            periods = [0, 20, 40, 60]
-
-        def generate_regional_markets(region: str, period: int) -> dict:
+        def generate_regional_markets(region: str) -> dict:
 
             new_dataset = copy.deepcopy(generic_dataset)
             new_dataset["location"] = region
@@ -999,40 +964,26 @@ class Electricity(BaseTransformation):
                         f"Couldn't find suppliers for {technology} when looking for {ecoinvent_technologies[technology]}."
                     ) from exc
 
-            if self.system_model == "consequential":
-                electricity_mix = dict(
-                    zip(
-                        self.iam_data.electricity_markets.variables.values,
-                        self.iam_data.electricity_markets.sel(
-                            region=region, year=self.year
-                        ).values,
+            electricity_mix = dict(
+                zip(
+                    self.iam_data.electricity_markets.variables.values,
+                    self.iam_data.electricity_markets.sel(region=region)
+                    .interp(
+                        year=self.year,
+                        kwargs={"fill_value": "extrapolate"},
                     )
+                    .values,
                 )
+            )
 
-            else:
-                electricity_mix = dict(
-                    zip(
-                        self.iam_data.electricity_markets.variables.values,
-                        self.iam_data.electricity_markets.sel(
-                            region=region,
-                        )
-                        .interp(
-                            year=np.arange(self.year, self.year + period + 1),
-                            kwargs={"fill_value": "extrapolate"},
-                        )
-                        .mean(dim="year")
-                        .values,
-                    )
-                )
-
-                # remove `solar pv residential` from the mix
-                if "Solar PV Residential" in electricity_mix:
-                    del electricity_mix["Solar PV Residential"]
-                # normalize the mix to 1
-                total = sum(electricity_mix.values())
-                electricity_mix = {
-                    tech: electricity_mix[tech] / total for tech in electricity_mix
-                }
+            # remove `solar pv residential` from the mix
+            if "Solar PV Residential" in electricity_mix:
+                del electricity_mix["Solar PV Residential"]
+            # normalize the mix to 1
+            total = sum(electricity_mix.values())
+            electricity_mix = {
+                tech: electricity_mix[tech] / total for tech in electricity_mix
+            }
 
             # fetch production volume
             production_volume = self.iam_data.production_volumes.sel(
@@ -1068,16 +1019,6 @@ class Electricity(BaseTransformation):
                     "location": region,
                 }
             )
-
-            if period != 0:
-                # this dataset is for a period of time
-                new_dataset["name"] += f", {period}-year period"
-                new_dataset["comment"] += (
-                    f" Average electricity mix over a {period}"
-                    f"-year period {self.year}-{self.year + period}."
-                )
-                new_exchanges[0]["name"] += f", {period}-year period"
-                new_exchanges[-1]["name"] += f", {period}-year period"
 
             # calculate the share of renewable energy in the mix
             renewable_share = 0
@@ -1130,9 +1071,8 @@ class Electricity(BaseTransformation):
             return new_dataset
 
         new_datasets = {
-            (region, period): generate_regional_markets(region, period)
+            region: generate_regional_markets(region)
             for region in self.regions
-            for period in periods
             if region != "World"
         }
 
@@ -1142,17 +1082,17 @@ class Electricity(BaseTransformation):
             self.write_log(ds)
             self.add_to_index(ds)
 
-        for period in periods:
-            new_world_dataset = self.generate_world_market(
-                dataset=copy.deepcopy(generic_dataset),
-                regions=self.regions,
-                period=period,
-            )
-            self.database.append(new_world_dataset)
-            self.write_log(new_world_dataset)
+        new_world_dataset = self.generate_world_market(
+            dataset=copy.deepcopy(generic_dataset),
+            regions=self.regions,
+        )
+        self.database.append(new_world_dataset)
+        self.write_log(new_world_dataset)
 
     def generate_world_market(
-        self, dataset: dict, regions: List[str], period: int
+        self,
+        dataset: dict,
+        regions: List[str],
     ) -> dict:
         """
         Generate the world market for a given dataset and product variables.
@@ -1166,10 +1106,6 @@ class Electricity(BaseTransformation):
         production volume and adds a technosphere exchange to the dataset with the appropriate share.
 
         """
-
-        # rename dataset
-        if "period" in dataset["name"]:
-            dataset["name"] = dataset["name"][:-16]
 
         # rename location
         dataset["location"] = "World"
@@ -1203,16 +1139,6 @@ class Electricity(BaseTransformation):
             }
         )
 
-        if period > 0:
-            # this dataset is for a period of time
-            dataset["name"] += f", {period}-year period"
-            dataset["comment"] += (
-                f" Average mix over a {period}"
-                f"-year period {self.year}-{self.year + period}."
-            )
-            for exc in ws.production(dataset):
-                exc["name"] += f", {period}-year period"
-
         # Filter out non-production exchanges
         dataset["exchanges"] = [
             e for e in dataset["exchanges"] if e["type"] == "production"
@@ -1239,10 +1165,9 @@ class Electricity(BaseTransformation):
                     ).sum(dim=["variables", "region"])
                 )
                 .interp(
-                    year=np.arange(self.year, self.year + period + 1),
+                    year=self.year,
                     kwargs={"fill_value": "extrapolate"},
                 )
-                .mean(dim="year")
                 .values
             )
 
@@ -2019,8 +1944,6 @@ class Electricity(BaseTransformation):
         self.create_new_markets_medium_voltage()
         # print("Create low voltage markets.")
         self.create_new_markets_low_voltage()
-
-        # print("Done!")
 
     def write_log(self, dataset, status="created"):
         """

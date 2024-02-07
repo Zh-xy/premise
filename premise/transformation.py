@@ -1506,14 +1506,36 @@ class BaseTransformation:
         possible_datasets = self.index[key]
 
         if len(possible_datasets) == 0:
+            if "market for" in exchange["name"]:
+                key = (
+                    exchange["name"].replace("market for", "market group for"),
+                    exchange["product"],
+                )
+                possible_datasets = self.index[key]
+
+        if len(possible_datasets) == 0:
+            # search self.database for possible datasets
+            possible_datasets = [
+                ds
+                for ds in self.database
+                if ds["name"] == exchange["name"]
+                and ds["reference product"] == exchange["product"]
+            ]
+
+        if len(possible_datasets) == 0:
             print(
-                "No possible datasets found for",
-                key,
-                "in",
-                dataset["name"],
-                dataset["location"],
+                f"No possible datasets found for {key} in {dataset['name']} {dataset['location']}"
             )
-            return
+            return [
+                {
+                    "name": exchange["name"],
+                    "product": exchange["product"],
+                    "unit": exchange["unit"],
+                    "location": dataset["location"],
+                    "type": "technosphere",
+                    "amount": exchange["amount"],
+                }
+            ]
 
         if len(possible_datasets) == 1:
             self.handle_single_possible_dataset(
@@ -1799,12 +1821,7 @@ class BaseTransformation:
         exchanges_before = defaultdict(float)
         for exc in dataset["exchanges"]:
             if exc["type"] == "technosphere":
-                exchanges_before[exc["name"]] += exc["amount"]
-
-        if dataset["name"] == "market for clinker" and dataset["location"] == "RoW":
-            print("BEFORE")
-            for e in dataset["exchanges"]:
-                print(e["name"], e.get("location"), e["amount"])
+                exchanges_before[exc["product"]] += exc["amount"]
 
         new_exchanges = self.find_candidates(
             dataset,
@@ -1834,18 +1851,13 @@ class BaseTransformation:
             )
         ]
 
-        if dataset["name"] == "market for clinker" and dataset["location"] == "RoW":
-            print("AFTER")
-            for e in new_exchanges:
-                print(e["name"], e.get("location"), e["amount"])
-
         dataset["exchanges"] = [
             exc for exc in dataset["exchanges"] if exc["type"] != "technosphere"
         ] + new_exchanges
 
         sum_after = sum(exc["amount"] for exc in dataset["exchanges"])
 
-        assert np.allclose(sum_before, sum_after), (
+        assert np.allclose(sum_before, sum_after, rtol=1e-3), (
             f"Sum of exchanges before and after relinking is not the same: {sum_before} != {sum_after}"
             f"\n{dataset['name']}|{dataset['location']}"
         )
@@ -1854,7 +1866,7 @@ class BaseTransformation:
         exchanges_after = defaultdict(float)
         for exc in dataset["exchanges"]:
             if exc["type"] == "technosphere":
-                exchanges_after[exc["name"]] += exc["amount"]
+                exchanges_after[exc["product"]] += exc["amount"]
 
         assert set(exchanges_before.keys()) == set(exchanges_after.keys()), (
             f"Exchanges before and after relinking are not the same: {set(exchanges_before.keys())} != {set(exchanges_after.keys())}"

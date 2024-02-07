@@ -2,6 +2,8 @@
 Validates datapackages that contain external scenario data.
 """
 
+from typing import Union
+
 import numpy as np
 import pandas as pd
 import yaml
@@ -9,11 +11,156 @@ from datapackage import exceptions, validate
 from schema import And, Optional, Schema, Use
 from wurst import searching as ws
 
-from .external import flag_activities_to_adjust
 from .geomap import Geomap
 from .utils import load_constants
 
 config = load_constants()
+
+
+def find_iam_efficiency_change(
+    variable: Union[str, list], location: str, efficiency_data, year: int
+) -> float:
+    """
+    Return the relative change in efficiency for `variable` in `location`
+    relative to 2020.
+    :param variable: IAM variable name
+    :param location: IAM region
+    :return: relative efficiency change (e.g., 1.05)
+    """
+
+    scaling_factor = 1
+
+    if variable in efficiency_data.variables.values:
+        scaling_factor = (
+            efficiency_data.sel(region=location, variables=variable).interp(year=year)
+        ).values.item(0)
+
+        if scaling_factor in (np.nan, np.inf):
+            scaling_factor = 1
+
+    return scaling_factor
+
+
+def flag_activities_to_adjust(
+    dataset: dict, scenario_data: dict, year: int, dataset_vars: dict
+) -> dict:
+    """
+    Flag datasets that will need to be adjusted.
+    :param dataset: dataset to be adjusted
+    :param scenario_data: external scenario data
+    :param year: year of the external scenario
+    :param dataset_vars: variables of the dataset
+    :return: dataset with additional info on variables to adjust
+    """
+
+    regions = scenario_data["production volume"].region.values.tolist()
+    if "except regions" in dataset_vars:
+        regions = [r for r in regions if r not in dataset_vars["except regions"]]
+
+    dataset["regions"] = regions
+
+    # add potential technosphere or biosphere filters
+    if "efficiency" in dataset_vars:
+        if len(dataset_vars["efficiency"]) > 0:
+
+            dataset["adjust efficiency"] = True
+
+            d_tech_filters = {
+                k.get("variable"): [
+                    k.get("includes").get("technosphere"),
+                    {
+                        region: find_iam_efficiency_change(
+                            k["variable"],
+                            region,
+                            scenario_data["efficiency"],
+                            year,
+                        )
+                        for region in regions
+                    },
+                ]
+                for k in dataset_vars["efficiency"]
+                if "technosphere" in k.get("includes", {})
+            }
+
+            d_tech_filters.update(
+                {
+                    k.get("variable"): [
+                        None,
+                        {
+                            region: find_iam_efficiency_change(
+                                k["variable"],
+                                region,
+                                scenario_data["efficiency"],
+                                year,
+                            )
+                            for region in regions
+                        },
+                    ]
+                    for k in dataset_vars["efficiency"]
+                    if "includes" not in k
+                }
+            )
+
+            d_bio_filters = {
+                k.get("variable"): [
+                    k.get("includes").get("biosphere"),
+                    {
+                        region: find_iam_efficiency_change(
+                            k["variable"],
+                            region,
+                            scenario_data["efficiency"],
+                            year,
+                        )
+                        for region in regions
+                    },
+                ]
+                for k in dataset_vars["efficiency"]
+                if "biosphere" in k.get("includes", {})
+            }
+
+            d_bio_filters.update(
+                {
+                    k.get("variable"): [
+                        None,
+                        {
+                            region: find_iam_efficiency_change(
+                                k["variable"],
+                                region,
+                                scenario_data["efficiency"],
+                                year,
+                            )
+                            for region in regions
+                        },
+                    ]
+                    for k in dataset_vars["efficiency"]
+                    if "includes" not in k
+                }
+            )
+
+            if d_tech_filters:
+                dataset["technosphere filters"] = d_tech_filters
+
+            if d_bio_filters:
+                dataset["biosphere filters"] = d_bio_filters
+
+    if dataset_vars["replaces"]:
+        dataset["replaces"] = dataset_vars["replaces"]
+
+    if dataset_vars["replaces in"]:
+        dataset["replaces in"] = dataset_vars["replaces in"]
+
+    if dataset_vars["replacement ratio"] != 1.0:
+        dataset["replacement ratio"] = dataset_vars["replacement ratio"]
+
+    if dataset_vars["regionalize"]:
+        dataset["regionalize"] = dataset_vars["regionalize"]
+
+    if "production volume variable" in dataset_vars:
+        dataset["production volume variable"] = dataset_vars[
+            "production volume variable"
+        ]
+
+    return dataset
 
 
 def check_inventories(

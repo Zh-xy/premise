@@ -12,18 +12,21 @@ import numpy as np
 import wurst
 import xarray as xr
 import yaml
+from datapackage import Package
 from wurst import searching as ws
 
 from .clean_datasets import get_biosphere_flow_uuid
 from .data_collection import IAMDataCollection
+from .external_data_validation import check_inventories, find_iam_efficiency_change
 from .filesystem_constants import DATA_DIR
 from .inventory_imports import (
+    AdditionalInventory,
     generate_migration_maps,
     get_biosphere_code,
     get_correspondence_bio_flows,
 )
 from .transformation import BaseTransformation, get_shares_from_production_volume
-from .utils import rescale_exchanges
+from .utils import HiddenPrints, rescale_exchanges
 
 LOG_CONFIG = DATA_DIR / "utils" / "logging" / "logconfig.yaml"
 
@@ -39,6 +42,60 @@ with open(LOG_CONFIG, encoding="utf-8") as f:
     logging.config.dictConfig(config)
 
 logger = logging.getLogger("external")
+
+
+def _update_external_scenarios(
+    scenario: dict,
+    version: str,
+    system_model: str,
+    datapackages: list,
+) -> dict:
+    datapackages = [
+        Package(f"{dp}/datapackage.json") if isinstance(dp, str) else dp
+        for dp in datapackages
+    ]
+    for d, data_package in enumerate(datapackages):
+        inventories = []
+        with HiddenPrints():
+            if "inventories" in [r.name for r in data_package.resources]:
+                if data_package.get_resource("inventories"):
+                    additional = AdditionalInventory(
+                        database=scenario["database"],
+                        version_in=data_package.descriptor["ecoinvent"]["version"],
+                        version_out=version,
+                        path=data_package.get_resource("inventories").source,
+                        system_model=system_model,
+                    )
+                    inventories.extend(additional.merge_inventory())
+
+        resource = data_package.get_resource("config")
+        config_file = yaml.safe_load(resource.raw_read())
+
+        checked_inventories, checked_database = check_inventories(
+            config_file,
+            inventories,
+            scenario["external data"][d],
+            scenario["database"],
+            scenario["year"],
+        )
+        scenario["database"] = checked_database
+        scenario["database"].extend(checked_inventories)
+
+    external_scenario = ExternalScenario(
+        database=scenario["database"],
+        model=scenario["model"],
+        pathway=scenario["pathway"],
+        iam_data=scenario["iam data"],
+        year=scenario["year"],
+        external_scenarios=datapackages,
+        external_scenarios_data=scenario["external data"],
+        version=version,
+        system_model=system_model,
+    )
+    external_scenario.create_custom_markets()
+    external_scenario.relink_datasets()
+    scenario["database"] = external_scenario.database
+    return scenario
 
 
 def get_mapping_between_ei_versions(version_in: str, version_out: str) -> dict:
@@ -60,152 +117,6 @@ def fetch_loc(loc: str) -> Union[str, None]:
         if loc[0] == "ecoinvent":
             return loc[1]
     return None
-
-
-def flag_activities_to_adjust(
-    dataset: dict, scenario_data: dict, year: int, dataset_vars: dict
-) -> dict:
-    """
-    Flag datasets that will need to be adjusted.
-    :param dataset: dataset to be adjusted
-    :param scenario_data: external scenario data
-    :param year: year of the external scenario
-    :param dataset_vars: variables of the dataset
-    :return: dataset with additional info on variables to adjust
-    """
-
-    regions = scenario_data["production volume"].region.values.tolist()
-    if "except regions" in dataset_vars:
-        regions = [r for r in regions if r not in dataset_vars["except regions"]]
-
-    dataset["regions"] = regions
-
-    # add potential technosphere or biosphere filters
-    if "efficiency" in dataset_vars:
-        if len(dataset_vars["efficiency"]) > 0:
-
-            dataset["adjust efficiency"] = True
-
-            d_tech_filters = {
-                k.get("variable"): [
-                    k.get("includes").get("technosphere"),
-                    {
-                        region: find_iam_efficiency_change(
-                            k["variable"],
-                            region,
-                            scenario_data["efficiency"],
-                            year,
-                        )
-                        for region in regions
-                    },
-                ]
-                for k in dataset_vars["efficiency"]
-                if "technosphere" in k.get("includes", {})
-            }
-
-            d_tech_filters.update(
-                {
-                    k.get("variable"): [
-                        None,
-                        {
-                            region: find_iam_efficiency_change(
-                                k["variable"],
-                                region,
-                                scenario_data["efficiency"],
-                                year,
-                            )
-                            for region in regions
-                        },
-                    ]
-                    for k in dataset_vars["efficiency"]
-                    if "includes" not in k
-                }
-            )
-
-            d_bio_filters = {
-                k.get("variable"): [
-                    k.get("includes").get("biosphere"),
-                    {
-                        region: find_iam_efficiency_change(
-                            k["variable"],
-                            region,
-                            scenario_data["efficiency"],
-                            year,
-                        )
-                        for region in regions
-                    },
-                ]
-                for k in dataset_vars["efficiency"]
-                if "biosphere" in k.get("includes", {})
-            }
-
-            d_bio_filters.update(
-                {
-                    k.get("variable"): [
-                        None,
-                        {
-                            region: find_iam_efficiency_change(
-                                k["variable"],
-                                region,
-                                scenario_data["efficiency"],
-                                year,
-                            )
-                            for region in regions
-                        },
-                    ]
-                    for k in dataset_vars["efficiency"]
-                    if "includes" not in k
-                }
-            )
-
-            if d_tech_filters:
-                dataset["technosphere filters"] = d_tech_filters
-
-            if d_bio_filters:
-                dataset["biosphere filters"] = d_bio_filters
-
-    if dataset_vars["replaces"]:
-        dataset["replaces"] = dataset_vars["replaces"]
-
-    if dataset_vars["replaces in"]:
-        dataset["replaces in"] = dataset_vars["replaces in"]
-
-    if dataset_vars["replacement ratio"] != 1.0:
-        dataset["replacement ratio"] = dataset_vars["replacement ratio"]
-
-    if dataset_vars["regionalize"]:
-        dataset["regionalize"] = dataset_vars["regionalize"]
-
-    if "production volume variable" in dataset_vars:
-        dataset["production volume variable"] = dataset_vars[
-            "production volume variable"
-        ]
-
-    return dataset
-
-
-def find_iam_efficiency_change(
-    variable: Union[str, list], location: str, efficiency_data, year: int
-) -> float:
-    """
-    Return the relative change in efficiency for `variable` in `location`
-    relative to 2020.
-    :param variable: IAM variable name
-    :param location: IAM region
-    :return: relative efficiency change (e.g., 1.05)
-    """
-
-    scaling_factor = 1
-
-    if variable in efficiency_data.variables.values:
-        scaling_factor = (
-            efficiency_data.sel(region=location, variables=variable).interp(year=year)
-        ).values.item(0)
-
-        if scaling_factor in (np.nan, np.inf):
-            scaling_factor = 1
-
-    return scaling_factor
 
 
 def get_recursively(search_dict: dict, field: str) -> list:
@@ -937,8 +848,6 @@ class ExternalScenario(BaseTransformation):
 
             # Check if information on market creation is provided
             if "markets" in config_file:
-                print("Create custom markets.")
-
                 for market_vars in config_file["markets"]:
                     # fetch all scenario file variables that
                     # relate to this market
